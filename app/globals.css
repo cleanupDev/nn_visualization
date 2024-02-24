@@ -74,3 +74,46 @@
     @apply bg-background text-foreground;
   }
 }
+
+.button-group {
+  display: flex;
+}
+
+.pill-button {
+  border: none;
+  color: white;
+  padding: 5px 10px;
+  font-size: 8px;
+  cursor: pointer;
+  outline: none;
+ 
+}
+
+.minus {
+  background-color: #3a3a3a;
+  border-top-right-radius: 50px;
+  border-bottom-right-radius: 50px;
+  border-left: 0; 
+}
+
+.plus {
+  background-color: #3a3a3a;
+  border-top-left-radius: 50px;
+  border-bottom-left-radius: 50px;
+  margin-right: 0px;
+}
+
+.pill-button:hover {
+  opacity: 0.8;
+}
+
+.layer-card {
+  background-color: #979797; /* Light grey background */
+  border-radius: 5px; /* Rounded corners */
+  box-shadow: 0 2px 5px  rgba(0, 0, 0, 0.1); /* Subtle shadow */
+}
+
+.layer-name {
+  font-weight: bold;
+  color: #333; /* Dark grey text for better readability */
+}

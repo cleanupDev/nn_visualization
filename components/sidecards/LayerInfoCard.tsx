@@ -1,3 +1,5 @@
+"use client";
+
 import * as React from "react";
 
 import {
@@ -13,14 +15,12 @@ import { Button } from "@/components/ui/button";
 
 const LayerInfoCard = () => {
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader>
-        <CardTitle>Layer Control</CardTitle>
+        <CardTitle>Layer Info</CardTitle>
       </CardHeader>
       <CardContent>
-        <CardDescription>
-          <p>Layer control description</p>
-        </CardDescription>
+        <CardDescription>Layer Info description</CardDescription>
       </CardContent>
       <CardFooter>
         <Button>Button</Button>
