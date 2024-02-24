@@ -95,6 +95,11 @@ const LayerControllCard = () => {
             ))}
           </div>
         </CardContent>
+        <CardFooter>
+          <CardDescription>
+            Dynamic model information updated in real-time
+          </CardDescription>
+        </CardFooter>
       </Card>
     </div>
   );

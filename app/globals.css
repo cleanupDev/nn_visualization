@@ -117,3 +117,25 @@
   font-weight: bold;
   color: #333; /* Dark grey text for better readability */
 }
+
+.model-info-card {
+  max-width: 600px; /* Adjust based on your layout */
+  margin: auto;
+  background: #fff; /* Adjust background color as needed */
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.model-info-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.model-info-table td {
+  padding: 8px;
+  border-bottom: 1px solid #eee; /* Light border for table rows */
+}
+
+.model-info-table tr:last-child td {
+  border-bottom: none;
+}

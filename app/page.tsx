@@ -1,5 +1,6 @@
 import LayerControllCard from "@/components/sidecards/LayerControllCard";
 import LayerInfoCard from "@/components/sidecards/LayerInfoCard";
+import LinksInfo from "@/components/linksInfo/LinksInfo";
 
 export default function Home() {
   return (
@@ -16,14 +17,16 @@ export default function Home() {
         </div>
 
         <div>Output Layer</div>
-        <div className="grid grid-rows-13 grid-flow-col mr-2">
-          <div className="row-start-1 row-end-3 h-full max-h-full overflow-auto">
+        <div className="grid grid-rows-13 grid-flow-col mr-2 mt-2">
+          <div className="row-start-1 row-end-6">
             <LayerControllCard />
           </div>
-          <div className="row-start-4 row-end-12">
+          <div className="row-start-7 row-end-12">
             <LayerInfoCard />
           </div>
-          <div className="row-start-13 row-end-13">Info | Links</div>
+          <div className="row-start-13 row-end-13">
+            <LinksInfo />
+          </div>
         </div>
       </div>
     </main>
