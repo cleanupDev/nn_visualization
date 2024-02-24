@@ -54,7 +54,7 @@ const LayerControllCard = () => {
     <div className="h-full overflow-auto">
       <Card className="h-full">
         <CardHeader>
-          <CardTitle className="text-center">Layer Control</CardTitle>
+          <CardTitle>Layer Control</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-2 text-center mb-5">
