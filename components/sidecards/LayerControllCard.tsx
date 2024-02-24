@@ -58,10 +58,18 @@ const LayerControllCard = () => {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-2 text-center mb-5">
-            <Button id="add-layer-button" onClick={handleAddLayer}>
+            <Button
+              variant="outline"
+              id="add-layer-button"
+              onClick={handleAddLayer}
+            >
               Add
             </Button>
-            <Button id="delete-layer-button" onClick={handleDeleteLayer}>
+            <Button
+              variant="outline"
+              id="delete-layer-button"
+              onClick={handleDeleteLayer}
+            >
               Del
             </Button>
           </div>
