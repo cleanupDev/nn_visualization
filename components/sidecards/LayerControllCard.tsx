@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useModelStore } from "@/components/store";
 
 import {
   Card,
@@ -13,41 +14,49 @@ import {
 
 import { Button } from "@/components/ui/button";
 
-const LayerControllCard = () => {
-  const [layers, setLayers] = React.useState<
-    { name: string; neurons: number }[]
-  >([]);
+const LayerControlCard = () => {
+  const { layers, setLayers, setNumLayers, setNumNeurons } = useModelStore();
+
+  const updateStore = (newLayers: { name: string; neurons: number }[]) => {
+    setLayers(newLayers);
+    setNumLayers(newLayers.length);
+    const totalNeurons = newLayers.reduce(
+      (acc, layer) => acc + layer.neurons,
+      1
+    );
+    setNumNeurons(totalNeurons);
+  };
 
   const handleAddLayer = () => {
     if (layers.length < 3) {
-      setLayers((prevLayers) => [
-        ...prevLayers,
-        { name: `Layer ${prevLayers.length + 1}`, neurons: 0 },
-      ]);
+      const newLayers = [
+        ...layers,
+        { name: `Layer ${layers.length + 1}`, neurons: 1 },
+      ];
+      updateStore(newLayers);
     }
   };
 
   const handleDeleteLayer = () => {
-    setLayers((prevLayers) => prevLayers.slice(0, prevLayers.length - 1));
+    const newLayers = layers.slice(0, layers.length - 1);
+    updateStore(newLayers);
   };
 
   const handleAddNeuron = (index: number) => {
     if (layers[index].neurons >= 4) return;
-    setLayers((prevLayers) =>
-      prevLayers.map((layer, idx) =>
-        idx === index ? { ...layer, neurons: layer.neurons + 1 } : layer
-      )
+    const newLayers = layers.map((layer, idx) =>
+      idx === index ? { ...layer, neurons: layer.neurons + 1 } : layer
     );
+    updateStore(newLayers);
   };
 
   const handleDeleteNeuron = (index: number) => {
-    setLayers((prevLayers) =>
-      prevLayers.map((layer, idx) =>
-        idx === index
-          ? { ...layer, neurons: Math.max(0, layer.neurons - 1) }
-          : layer
-      )
+    const newLayers = layers.map((layer, idx) =>
+      idx === index
+        ? { ...layer, neurons: Math.max(1, layer.neurons - 1) }
+        : layer
     );
+    updateStore(newLayers);
   };
 
   return (
@@ -113,4 +122,4 @@ const LayerControllCard = () => {
   );
 };
 
-export default LayerControllCard;
+export default LayerControlCard;
