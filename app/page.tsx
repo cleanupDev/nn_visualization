@@ -1,22 +1,21 @@
 import LayerControllCard from "@/components/sidecards/LayerControllCard";
 import LayerInfoCard from "@/components/sidecards/LayerInfoCard";
 import LinksInfo from "@/components/linksInfo/LinksInfo";
+import ControlPanel from "@/components/controllPanel/ControllPanel";
 
 export default function Home() {
   return (
     <main className="bg-[#ffffff]" style={{ height: "100vh" }}>
       <div className="grid grid-cols-5 gap-2" style={{ height: "100%" }}>
-        <div>Input Layer</div>
-        <div className="col-span-2">
-          <div>Controll Panel</div>
-          <div className="grid grid-cols-3 gap-2">
-            <div>Hidden 1</div>
-            <div>Hidden 2</div>
-            <div>Hidden 3</div>
+        <div className="col-span-4">
+          <div className="grid grid-cols-4">
+            <div className="col-span-2 col-start-2 col-end-4">
+              <ControlPanel />
+            </div>
           </div>
+          <div className="col-span-4 bg-slate-500 h-full">SVG Component</div>
         </div>
 
-        <div>Output Layer</div>
         <div className="grid grid-rows-13 grid-flow-col mr-2 mt-2">
           <div className="row-start-1 row-end-6">
             <LayerControllCard />
