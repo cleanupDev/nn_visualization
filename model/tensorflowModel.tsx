@@ -4,14 +4,17 @@
 import * as tf from "@tensorflow/tfjs";
 import { useModelStore } from "@/components/store";
 
-const inputData = [
+export const inputData = tf.tensor([
   [0, 0],
   [0, 1],
   [1, 0],
   [1, 1],
-];
+]);
 
-const targetData = [[0], [1], [1], [0]];
+export const inputTensor = inputData.reshape([4, 2]);
+
+export const targetData = tf.tensor([[0], [1], [1], [0]]);
+export const targetTensor = targetData.reshape([4, 1]);
 
 export const createAndCompileModel = () => {
   const { input_neurons, output_neurons, layers, setNumParams } =
@@ -21,7 +24,7 @@ export const createAndCompileModel = () => {
 
   model.add(
     tf.layers.inputLayer({
-      inputShape: [input_neurons],
+      inputShape: [2],
     })
   );
 
@@ -42,7 +45,7 @@ export const createAndCompileModel = () => {
   );
 
   model.compile({
-    optimizer: "adam",
+    optimizer: "rmsprop",
     loss: "binaryCrossentropy",
     metrics: ["accuracy"],
   });

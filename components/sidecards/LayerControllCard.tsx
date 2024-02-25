@@ -15,7 +15,14 @@ import {
 import { Button } from "@/components/ui/button";
 
 const LayerControlCard = () => {
-  const { layers, setLayers, setNumLayers, setNumNeurons } = useModelStore();
+  const {
+    layers,
+    is_training,
+    setLayers,
+    setNumLayers,
+    setNumNeurons,
+    resetModelData,
+  } = useModelStore();
 
   const updateStore = (newLayers: { name: string; neurons: number }[]) => {
     setLayers(newLayers);
@@ -34,12 +41,14 @@ const LayerControlCard = () => {
         { name: `Layer ${layers.length + 1}`, neurons: 1 },
       ];
       updateStore(newLayers);
+      resetModelData();
     }
   };
 
   const handleDeleteLayer = () => {
     const newLayers = layers.slice(0, layers.length - 1);
     updateStore(newLayers);
+    resetModelData();
   };
 
   const handleAddNeuron = (index: number) => {
@@ -48,6 +57,7 @@ const LayerControlCard = () => {
       idx === index ? { ...layer, neurons: layer.neurons + 1 } : layer
     );
     updateStore(newLayers);
+    resetModelData();
   };
 
   const handleDeleteNeuron = (index: number) => {
@@ -57,6 +67,7 @@ const LayerControlCard = () => {
         : layer
     );
     updateStore(newLayers);
+    resetModelData();
   };
 
   return (
@@ -71,6 +82,7 @@ const LayerControlCard = () => {
               variant="outline"
               id="add-layer-button"
               onClick={handleAddLayer}
+              disabled={is_training}
             >
               Add
             </Button>
@@ -78,6 +90,7 @@ const LayerControlCard = () => {
               variant="outline"
               id="delete-layer-button"
               onClick={handleDeleteLayer}
+              disabled={is_training}
             >
               Del
             </Button>
@@ -98,12 +111,14 @@ const LayerControlCard = () => {
                   <button
                     className="pill-button plus"
                     onClick={() => handleAddNeuron(index)}
+                    disabled={is_training}
                   >
                     +
                   </button>
                   <button
                     className="pill-button minus"
                     onClick={() => handleDeleteNeuron(index)}
+                    disabled={is_training}
                   >
                     -
                   </button>

@@ -40,11 +40,19 @@ const LayerInfoCard = () => {
             </tr>
             <tr>
               <td>Loss:</td>
-              <td>{modelData.curr_loss.toFixed(2)}</td>
+              <td>
+                {modelData.curr_loss === "N/A"
+                  ? modelData.curr_loss
+                  : modelData.curr_loss.toFixed(4)}
+              </td>
             </tr>
             <tr>
               <td>Accuracy:</td>
-              <td>{(modelData.curr_acc * 100).toFixed(1)}%</td>
+              <td>
+                {modelData.curr_acc === "N/A"
+                  ? modelData.curr_acc
+                  : modelData.curr_acc.toFixed(4)}
+              </td>
             </tr>
             <tr>
               <td>Phase:</td>
