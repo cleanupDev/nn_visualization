@@ -38,7 +38,7 @@ const ControlPanel = () => {
 
     try {
       const history = await model.fit(inputTensor, targetTensor, {
-        epochs: 10000,
+        epochs: 100,
         callbacks: {
           onEpochEnd: async (epoch: number, logs: any) => {
             console.log(
@@ -75,7 +75,7 @@ const ControlPanel = () => {
         disabled={!model || is_training}
         onClick={addEpoch}
       >
-        +10000 Epochs
+        +100 Epochs
       </Button>
       <Button variant="ghost" disabled={!model || is_training}>
         + Step
