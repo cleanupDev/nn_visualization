@@ -8,6 +8,8 @@ import {
   targetTensor,
 } from "@/model/tensorflowModel";
 import { useModelStore } from "@/components/store";
+import * as tf from "@tensorflow/tfjs";
+
 
 const ControlPanel = () => {
   const {
@@ -64,6 +66,16 @@ const ControlPanel = () => {
       setIsTraining(false);
     }
   };
+
+  const manualForwardPass = async () => {
+    if (!model) return;
+
+    
+  }
+
+  const addStep = async () => {
+  };
+
 
   return (
     <div className="grid grid-cols-4 gap-1">
