@@ -10,7 +10,6 @@ import {
 import { useModelStore } from "@/components/store";
 import * as tf from "@tensorflow/tfjs";
 
-
 const ControlPanel = () => {
   const {
     model,
@@ -69,13 +68,9 @@ const ControlPanel = () => {
 
   const manualForwardPass = async () => {
     if (!model) return;
-
-    
-  }
-
-  const addStep = async () => {
   };
 
+  const addStep = async () => {};
 
   return (
     <div className="grid grid-cols-4 gap-1">
@@ -90,7 +85,7 @@ const ControlPanel = () => {
         +100 Epochs
       </Button>
       <Button variant="ghost" disabled={!model || is_training}>
-        + Step
+        + Stepss
       </Button>
       <Button variant="ghost" disabled={!model || is_training}>
         + Phase
