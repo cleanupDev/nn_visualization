@@ -4,7 +4,7 @@ import React, { useMemo, useRef, useState, useCallback, useEffect } from 'react'
 import { Canvas, useThree, useFrame } from '@react-three/fiber'
 import { OrbitControls, Line } from '@react-three/drei'
 import { Color, Vector3, Plane, Raycaster } from 'three'
-import { useSpring, animated } from '@react-spring/three'
+import { useSpring, animated, config } from '@react-spring/three'
 import { NeuralNetController, Neuron as NeuronType, Connection as ConnectionType } from './neuralNetController'
 
 // Component for a single neuron
@@ -109,78 +109,30 @@ const Connection = ({ connection, neurons }: { connection: ConnectionType; neuro
 
 // Main component for the neural network visualization
 const NeuralNetwork = ({ controller }: { controller: NeuralNetController }) => {
-  const [neurons, setNeurons] = useState(() => {
-    const initialNeurons = controller.getNeurons();
-    console.log("Initial neurons:", initialNeurons);
-    return initialNeurons;
-  });
-  const [connections, setConnections] = useState(() => {
-    const initialConnections = controller.getConnections();
-    console.log("Initial connections:", initialConnections);
-    return initialConnections;
-  });
-  const [isRealigning, setIsRealigning] = useState(false);
+  const [neurons, setNeurons] = useState(controller.getNeurons());
+  const [connections, setConnections] = useState(controller.getConnections());
 
-  const updateNeuronPosition = useCallback((neuronId: string, newPosition: Vector3) => {
-    console.log(`Updating neuron position: ${neuronId}`, newPosition);
-    controller.updateNeuronPosition(neuronId, newPosition);
-    setNeurons([...controller.getNeurons()]);
-    setConnections([...controller.getConnections()]);
+  const updateVisualization = useCallback(() => {
+    console.log("Updating visualization");
+    const updatedNeurons = controller.getNeurons();
+    const updatedConnections = controller.getConnections();
+    console.log("Updated neurons:", updatedNeurons);
+    console.log("Updated connections:", updatedConnections);
+    setNeurons(updatedNeurons);
+    setConnections(updatedConnections);
   }, [controller]);
 
-  const startRealignment = useCallback(() => {
-    setIsRealigning(true);
-  }, []);
-
-  const stopRealignment = useCallback(() => {
-    setIsRealigning(false);
-  }, []);
-
   useEffect(() => {
-    const handlePointerUp = () => {
-      startRealignment();
-    };
-
-    window.addEventListener('pointerup', handlePointerUp);
-    return () => {
-      window.removeEventListener('pointerup', handlePointerUp);
-    };
-  }, [startRealignment]);
-
-  useEffect(() => {
-    if (isRealigning) {
-      const timer = setTimeout(() => {
-        setNeurons(controller.getNeurons());
-        setConnections(controller.getConnections());
-        stopRealignment();
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [isRealigning, stopRealignment, controller]);
-
-  // Add this effect to update the visualization when the controller changes
-  useEffect(() => {
-    const updateVisualization = () => {
-      console.log("Updating visualization");
-      const updatedNeurons = controller.getNeurons();
-      const updatedConnections = controller.getConnections();
-      console.log("Updated neurons:", updatedNeurons);
-      console.log("Updated connections:", updatedConnections);
-      setNeurons([...updatedNeurons]);
-      setConnections([...updatedConnections]);
-    };
-
-    // Expose the update function globally
     (window as any).updateNeuralNetVisualization = updateVisualization;
-
     return () => {
       delete (window as any).updateNeuralNetVisualization;
     };
-  }, [controller]);
+  }, [updateVisualization]);
 
-  console.log("Rendering NeuralNetwork component");
-  console.log("Current neurons:", neurons);
-  console.log("Current connections:", connections);
+  const updateNeuronPosition = useCallback((neuronId: string, newPosition: Vector3) => {
+    controller.updateNeuronPosition(neuronId, newPosition);
+    updateVisualization();
+  }, [controller, updateVisualization]);
 
   return (
     <>
@@ -189,7 +141,7 @@ const NeuralNetwork = ({ controller }: { controller: NeuralNetController }) => {
           key={neuron.id}
           neuron={neuron}
           onDrag={(newPosition) => updateNeuronPosition(neuron.id, newPosition)}
-          isRealigning={isRealigning}
+          isRealigning={false}
         />
       ))}
       {connections.map((connection) => (

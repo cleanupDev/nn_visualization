@@ -26,21 +26,41 @@ export class NeuralNetController {
 
   private initializeNetwork() {
     let neuronId = 0
+    this.neurons = []
+    this.recalculatePositions()
+  }
+
+  private recalculatePositions() {
     const spacing = 2
     const totalLayers = this.layers.length
 
-    this.layers.forEach((neurons, layerIndex) => {
+    let currentNeuronIndex = 0
+    this.layers.forEach((neuronsInLayer, layerIndex) => {
       const layerOffset = (totalLayers - 1) / 2 - layerIndex
-      for (let i = 0; i < neurons; i++) {
-        const verticalOffset = (neurons - 1) / 2 - i
-        this.neurons.push({
-          id: `neuron-${neuronId++}`,
-          position: new Vector3(layerOffset * spacing, verticalOffset * spacing, 0),
-          activation: Math.random(),
-          layer: layerIndex
-        })
+      for (let i = 0; i < neuronsInLayer; i++) {
+        const verticalOffset = (neuronsInLayer - 1) / 2 - i
+        const newPosition = new Vector3(layerOffset * spacing, verticalOffset * spacing, 0)
+        
+        if (currentNeuronIndex < this.neurons.length) {
+          // Update existing neuron position
+          this.neurons[currentNeuronIndex].position = newPosition
+        } else {
+          // Add new neuron
+          this.neurons.push({
+            id: `neuron-${currentNeuronIndex}`,
+            position: newPosition,
+            activation: Math.random(),
+            layer: layerIndex
+          })
+        }
+        currentNeuronIndex++
       }
     })
+
+    // Remove any excess neurons
+    if (currentNeuronIndex < this.neurons.length) {
+      this.neurons.splice(currentNeuronIndex)
+    }
 
     this.updateConnections()
   }
@@ -83,24 +103,9 @@ export class NeuralNetController {
       throw new Error('Invalid layer')
     }
 
-    const newNeuronId = `neuron-${this.neurons.length}`
-    const layerNeurons = this.neurons.filter(n => n.layer === layer)
-    const spacing = 2
-    const layerOffset = (this.layers.length - 1) / 2 - layer
-    const verticalOffset = layerNeurons.length / 2
-
-    const newNeuron: Neuron = {
-      id: newNeuronId,
-      position: new Vector3(layerOffset * spacing, verticalOffset * spacing, 0),
-      activation: Math.random(),
-      layer
-    }
-
-    this.neurons.push(newNeuron)
     this.layers[layer]++
-    this.updateConnections()
-
-    return newNeuron
+    this.recalculatePositions()
+    return this.neurons[this.neurons.length - 1]
   }
 
   removeNeuron(neuronId: string) {
@@ -109,9 +114,9 @@ export class NeuralNetController {
       throw new Error('Neuron not found')
     }
 
-    const removedNeuron = this.neurons.splice(index, 1)[0]
+    const removedNeuron = this.neurons[index]
     this.layers[removedNeuron.layer]--
-    this.updateConnections()
+    this.recalculatePositions()
 
     return removedNeuron
   }
