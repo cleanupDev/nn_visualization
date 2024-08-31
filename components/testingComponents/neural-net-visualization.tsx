@@ -6,6 +6,7 @@ import { OrbitControls, Line } from '@react-three/drei'
 import { Color, Vector3, Plane, Raycaster } from 'three'
 import { useSpring, animated, config } from '@react-spring/three'
 import { NeuralNetController, Neuron as NeuronType, Connection as ConnectionType } from './neuralNetController'
+import { MeshBasicMaterial } from 'three'
 
 // Component for a single neuron
 const Neuron = ({ neuron, onDrag, isRealigning }: { neuron: NeuronType; onDrag: (position: Vector3) => void; isRealigning: boolean }) => {
@@ -20,13 +21,8 @@ const Neuron = ({ neuron, onDrag, isRealigning }: { neuron: NeuronType; onDrag: 
     config: { mass: 1, tension: 180, friction: 12 }
   })
 
-  const color = useMemo(() => {
-    return new Color().setHSL(0.6 - neuron.activation * 0.5, 1, 0.5)
-  }, [neuron.activation])
-
-  const hoverColor = useMemo(() => {
-    return color.clone().lerp(new Color(1, 1, 1), 0.5)
-  }, [color])
+  const neuronColor = useMemo(() => new Color('#1971c2'), [])
+  const hoverColor = useMemo(() => neuronColor.clone().lerp(new Color(1, 1, 1), 0.3), [neuronColor])
 
   const onPointerDown = useCallback((event: THREE.Event) => {
     event.stopPropagation()
@@ -79,7 +75,7 @@ const Neuron = ({ neuron, onDrag, isRealigning }: { neuron: NeuronType; onDrag: 
       onClick={onClick}
     >
       <sphereGeometry args={[0.2, 16, 16]} />
-      <meshStandardMaterial color={isHovered ? hoverColor : color} />
+      <meshBasicMaterial color={isHovered ? hoverColor : neuronColor} />
     </animated.mesh>
   )
 }
@@ -94,14 +90,14 @@ const Connection = ({ connection, neurons }: { connection: ConnectionType; neuro
   }
 
   const color = useMemo(() => {
-    return new Color().setHSL(0.6 - connection.strength * 0.5, 1, 0.5)
+    return connection.strength >= 0 ? new Color('#2f9e44') : new Color('#e03131')
   }, [connection.strength])
 
   return (
     <Line
       points={[startNeuron.position, endNeuron.position]}
       color={color}
-      lineWidth={connection.strength * 5}
+      lineWidth={Math.abs(connection.strength) * 5}
       onClick={() => console.log('Connection clicked')}
     />
   )
@@ -204,7 +200,7 @@ const CameraController = () => {
     <OrbitControls
       ref={controlsRef}
       enablePan={false}
-      enableZoom={false}
+      enableZoom={true}
       enableDamping={false}
       onChange={() => {
         if (isDragging) {
@@ -224,8 +220,9 @@ const NeuralNetVisualization = ({ children, controller }: { children: React.Reac
     <div className="fixed inset-0 z-0">
       <Canvas camera={{ position: [0, 0, 10], fov: 50 }}>
         <color attach="background" args={['#121212']} />
-        <ambientLight intensity={0.5} />
-        <pointLight position={[10, 10, 10]} />
+        {/* Remove or reduce the intensity of these lights */}
+        {/* <ambientLight intensity={0.5} /> */}
+        {/* <pointLight position={[10, 10, 10]} /> */}
         <NeuralNetwork controller={controller} />
         <CameraController />
       </Canvas>
