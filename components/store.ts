@@ -2,6 +2,7 @@
 
 import { create } from 'zustand';
 import * as tf from "@tensorflow/tfjs";
+import Neuron from './visualization/neuron';
 
 
 interface ModelActions {
@@ -17,6 +18,7 @@ interface ModelActions {
     setIsTraining: (isTraining: boolean) => void;
     updateNumParams: () => void;
     resetModelData: () => void;
+    setNeurons: (neurons: Neuron[]) => void;
 }
 
 interface ModelInfo {
@@ -33,6 +35,16 @@ interface ModelInfo {
     curr_epoch: number;
     is_training: boolean;
     inputShape: number[];
+    neurons: Neuron[];
+}
+
+interface Neuron {
+    id: string;
+    position: { x: number; y: number; z: number };
+    layer: number;
+    bias: number;
+    weights: number[];
+    activation: string;
 }
 
 type ModelStore = ModelInfo & ModelActions;
@@ -52,6 +64,7 @@ export const useModelStore = create<ModelStore>((set) => ({
     curr_epoch: 0,
     is_training: false,
     inputShape: [2], // TODO: Make this dynamic based on the input neurons
+    neurons: [],
     setModel: (model: tf.LayersModel | null) => set({ model }),
     setNumNeurons: (num: number) => set({ num_neurons: num }),
     setNumLayers: (num: number) => set({ num_layers: num }),
@@ -80,5 +93,7 @@ export const useModelStore = create<ModelStore>((set) => ({
             curr_phase: "training",
             curr_epoch: 0,
         });
-    }
+    },
+    setNeurons: (neurons: Neuron[]) => set({ neurons }),
+
 }));

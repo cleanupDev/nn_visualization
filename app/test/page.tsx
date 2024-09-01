@@ -62,7 +62,7 @@ export default function TestPage() {
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
       <NeuralNetVisualization controller={controller}>
-        <div className='absolute top-0 left-0'>
+        <div className='absolute top-0 left-5'>
           <ControllPanel />
         </div>
       </NeuralNetVisualization>

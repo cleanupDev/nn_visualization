@@ -21,6 +21,7 @@ const ControlPanel = () => {
     setCurrEpoch,
     setModel,
     setIsTraining,
+    setNeurons,
   } = useModelStore();
 
   const createModel = () => {
@@ -31,6 +32,7 @@ const ControlPanel = () => {
     setCurrLoss(0);
     setCurrPhase("training");
     setCurrEpoch(0);
+    updateWeightsAndBiases(newModel);
   };
 
   const addEpoch = async () => {
@@ -49,6 +51,7 @@ const ControlPanel = () => {
             setCurrAcc(logs.acc);
             setCurrLoss(logs.loss);
             setCurrEpoch(curr_epoch + epoch + 1);
+            updateWeightsAndBiases(model);
           },
         },
       });
@@ -65,6 +68,26 @@ const ControlPanel = () => {
       setIsTraining(false);
     }
   };
+
+  const updateWeightsAndBiases = (model: tf.LayersModel) => {
+
+    model.layers.forEach((layer, index) => {
+      if (layer instanceof tf.layers.Dense) {
+        const weights = layer.getWeights()[0];
+        const biases = layer.getWeights()[1];
+        setNeurons((prevNeurons) => {
+          return prevNeurons.map((neuron, neuronIndex) => {
+            return {
+              ...neuron,
+              weights: weights.slice(neuronIndex * weights.shape[1], (neuronIndex + 1) * weights.shape[1]),
+              bias: biases[neuronIndex],
+            };
+          });
+        });
+      }
+    });
+  };
+    
 
   const manualForwardPass = async () => {
     if (!model) return;
