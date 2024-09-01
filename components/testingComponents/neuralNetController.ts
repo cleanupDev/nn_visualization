@@ -5,6 +5,15 @@ export interface Neuron {
   position: Vector3
   activation: number
   layer: number
+  type: 'hidden' | 'input' | 'output'
+}
+
+export interface InputNeuron extends Neuron {
+  type: 'input'
+}
+
+export interface OutputNeuron extends Neuron {
+  type: 'output'
 }
 
 export interface Connection {
@@ -50,7 +59,8 @@ export class NeuralNetController {
             id: `neuron-${currentNeuronIndex}`,
             position: newPosition,
             activation: Math.random(),
-            layer: layerIndex
+            layer: layerIndex,
+            type: 'hidden' // or 'input'/'output' based on your logic
           })
         }
         currentNeuronIndex++

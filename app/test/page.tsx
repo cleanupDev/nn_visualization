@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic'
 import { ErrorBoundary, FallbackProps } from 'react-error-boundary'
 import { useState, useCallback } from 'react'
 import { NeuralNetController } from '@/components/testingComponents/neuralNetController'
+import { ImprovedButtonControlledSidebarMenu } from '@/components/sidecards/improved-button-controlled-sidebar-menu'
 
 const NeuralNetVisualization = dynamic(() => import('@/components/testingComponents/neural-net-visualization'), { ssr: false })
 
@@ -77,6 +78,7 @@ export default function TestPage() {
           </div>
         </div>
       </NeuralNetVisualization>
+      <ImprovedButtonControlledSidebarMenu />
     </ErrorBoundary>
   )
 }
