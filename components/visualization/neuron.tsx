@@ -63,7 +63,7 @@ export default function Neuron({ neuron, onDrag, isRealigning }: { neuron: Neuro
       position={animatedPosition}
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
-      onPointerMove={onPointerMove}
+      //onPointerMove={onPointerMove}
       onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
       onClick={onClick}

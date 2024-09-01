@@ -106,7 +106,7 @@ const ControlPanel = () => {
         +100 Epochs
       </Button>
       <Button variant="ghost" disabled={!model || is_training}>
-        + Stepss
+        + Steps
       </Button>
       <Button variant="ghost" disabled={!model || is_training}>
         + Phase

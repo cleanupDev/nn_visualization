@@ -1,4 +1,4 @@
-import React, { useRef, useState, useMemo, useEffect } from 'react'
+import React, { useRef, useState, useMemo, useEffect, useCallback } from 'react'
 import { useThree, useFrame } from '@react-three/fiber'
 import { Vector3 } from 'three'
 import { useSpring } from '@react-spring/three'
@@ -22,7 +22,7 @@ export default function CameraController() {
     setIsDragging(true)
   }
 
-  const handlePointerUp = () => {
+  const handlePointerUp = useCallback(() => {
     if (isDragging) {
       setIsDragging(false)
       api.start({
@@ -30,7 +30,7 @@ export default function CameraController() {
         cameraRotation: [defaultCameraRotation.x, defaultCameraRotation.y, defaultCameraRotation.z],
       })
     }
-  }
+  }, [isDragging, api, defaultCameraPosition, defaultCameraRotation])
 
   useFrame(() => {
     if (!isDragging) {
