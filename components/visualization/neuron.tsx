@@ -4,7 +4,7 @@ import { Color, Vector3, Plane } from 'three'
 import { useSpring, animated } from '@react-spring/three'
 import { Neuron as NeuronType } from './neuralNetController'
 
-export default function Neuron({ neuron, onDrag, isRealigning }: { neuron: NeuronType; onDrag: (position: Vector3) => void; isRealigning: boolean }) {
+export default function Neuron({ neuron, isRealigning }: { neuron: NeuronType; isRealigning: boolean }) {
   const meshRef = useRef<THREE.Mesh>(null)
   const { camera, raycaster, mouse } = useThree()
   const [isDragging, setIsDragging] = useState(false)
@@ -36,7 +36,7 @@ export default function Neuron({ neuron, onDrag, isRealigning }: { neuron: Neuro
         onDrag(intersectionPoint)
       }
     }
-  }, [isDragging, camera, mouse, dragPlane, onDrag, raycaster])
+  }, [isDragging, camera, mouse, dragPlane, raycaster])
 
   const onPointerEnter = useCallback(() => {
     setIsHovered(true)

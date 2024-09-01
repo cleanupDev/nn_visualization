@@ -3,10 +3,11 @@ import { useThree, useFrame } from '@react-three/fiber'
 import { Vector3 } from 'three'
 import { useSpring } from '@react-spring/three'
 import { OrbitControls } from '@react-three/drei'
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 
 export default function CameraController() {
   const { camera, gl } = useThree()
-  const controlsRef = useRef<OrbitControls>(null)
+  const controlsRef = useRef<OrbitControlsImpl>(null)
   const [isDragging, setIsDragging] = useState(false)
   
   const defaultCameraPosition = useMemo(() => new Vector3(0, 0, 10), [])

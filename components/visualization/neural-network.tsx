@@ -26,11 +26,6 @@ export default function NeuralNetwork({ controller }: { controller: NeuralNetCon
     }
   }, [updateVisualization])
 
-  const updateNeuronPosition = useCallback((neuronId: string, newPosition: Vector3) => {
-    controller.updateNeuronPosition(neuronId, newPosition)
-    updateVisualization()
-  }, [controller, updateVisualization])
-
   return (
     <>
       {neurons.map((neuron) => (
