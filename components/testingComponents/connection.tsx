@@ -1,0 +1,26 @@
+import React, { useMemo } from 'react'
+import { Line } from '@react-three/drei'
+import { Color } from 'three'
+import { Connection as ConnectionType, Neuron as NeuronType } from './neuralNetController'
+
+export default function Connection({ connection, neurons }: { connection: ConnectionType; neurons: NeuronType[] }) {
+  const startNeuron = neurons.find(n => n.id === connection.startNeuronId)
+  const endNeuron = neurons.find(n => n.id === connection.endNeuronId)
+
+  if (!startNeuron || !endNeuron) {
+    return null
+  }
+
+  const color = useMemo(() => {
+    return connection.strength >= 0 ? new Color('#2f9e44') : new Color('#e03131')
+  }, [connection.strength])
+
+  return (
+    <Line
+      points={[startNeuron.position, endNeuron.position]}
+      color={color}
+      lineWidth={Math.abs(connection.strength) * 5}
+      onClick={() => console.log('Connection clicked')}
+    />
+  )
+}
