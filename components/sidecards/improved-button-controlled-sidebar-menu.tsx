@@ -10,6 +10,7 @@ interface SidebarMenuProps {
 
 export function ImprovedButtonControlledSidebarMenu({ children }: SidebarMenuProps) {
   const [isOpen, setIsOpen] = useState(true)
+  const [isStylesLoaded, setIsStylesLoaded] = useState(false)
 
   const toggleMenu = useCallback(() => {
     setIsOpen(prevState => !prevState)
@@ -27,6 +28,12 @@ export function ImprovedButtonControlledSidebarMenu({ children }: SidebarMenuPro
       document.removeEventListener('keydown', handleEscape)
     }
   }, [isOpen])
+
+  useEffect(() => {
+    // Delay setting isStylesLoaded to ensure styles are applied
+    const timer = setTimeout(() => setIsStylesLoaded(true), 50)
+    return () => clearTimeout(timer)
+  }, [])
 
   return (
     <>
@@ -53,7 +60,7 @@ export function ImprovedButtonControlledSidebarMenu({ children }: SidebarMenuPro
           </div>
           
           {/* Scrollable area for cards */}
-          <div className="flex-grow overflow-y-auto custom-scrollbar">
+          <div className={`flex-grow overflow-y-auto custom-scrollbar ${isStylesLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}>
             <div className="space-y-4 pr-4">
               {children}
             </div>
@@ -75,6 +82,7 @@ function InfoCard({ title, content }: { title: string; content: string }) {
 }
 
 const scrollbarStyles = `
+  
   .custom-scrollbar::-webkit-scrollbar {
     width: 8px;
   }
@@ -85,6 +93,7 @@ const scrollbarStyles = `
   .custom-scrollbar::-webkit-scrollbar-thumb {
     background: #4a4550;
     border-radius: 4px;
+    transition: background 0.3s ease;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: #5a5560;
