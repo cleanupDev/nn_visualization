@@ -23,7 +23,7 @@ const LayerInfoCard = () => {
   }));
 
   return (
-    <Card className="h-full model-info-card">
+    <Card className="h-full bg-[#31303b] border-none text-white">
       <CardHeader>
         <CardTitle>Model Info</CardTitle>
       </CardHeader>

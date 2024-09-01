@@ -31,7 +31,7 @@ const LayerControlCard = () => {
       (acc, layer) => acc + layer.neurons,
       1
     );
-    setNumNeurons(totalNeurons);
+    setNumNeurons(2 +totalNeurons);
   };
 
   const handleAddLayer = () => {
@@ -72,12 +72,12 @@ const LayerControlCard = () => {
 
   return (
     <div className="h-full overflow-auto">
-      <Card className="h-full">
+      <Card className="h-full bg-[#31303b] border-none text-white">
         <CardHeader>
           <CardTitle>Layer Control</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-2 text-center mb-5">
+          <div className="grid grid-cols-2 gap-2 text-center mb-5 text-black">
             <Button
               variant="outline"
               id="add-layer-button"

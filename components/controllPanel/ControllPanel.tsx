@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   createAndCompileModel,
@@ -23,6 +23,13 @@ const ControlPanel = () => {
     setIsTraining,
     setNeurons,
   } = useModelStore();
+
+  const [isStylesLoaded, setIsStylesLoaded] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsStylesLoaded(true), 50);
+    return () => clearTimeout(timer);
+  }, []);
 
   const createModel = () => {
     if (model) model.dispose();
@@ -94,25 +101,70 @@ const ControlPanel = () => {
   const addStep = async () => {};
 
   return (
-    <div className="grid grid-cols-4 gap-1">
-      <Button variant={model ? "ghost" : "destructive"} onClick={createModel}>
-        Init
-      </Button>
-      <Button
-        variant="secondary"
-        disabled={!model || is_training}
-        onClick={addEpoch}
-      >
-        +100 Epochs
-      </Button>
-      <Button variant="ghost" disabled={!model || is_training}>
-        + Steps
-      </Button>
-      <Button variant="ghost" disabled={!model || is_training}>
-        + Phase
-      </Button>
+    <div className="fixed top-4 left-0 w-full px-4 sm:left-1/5 sm:w-3/5 md:w-2/5 lg:left-1/5 lg:w-1/5 z-50">
+      <div className="bg-[#28242c] rounded-lg shadow-lg p-2">
+        <div className={`flex flex-wrap sm:flex-nowrap gap-2 ${isStylesLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}>
+          <Button 
+            variant={model ? "outline" : "destructive"} 
+            onClick={createModel} 
+            className="flex-grow basis-[calc(50%-0.25rem)] sm:basis-0 text-xs sm:text-sm"
+          >
+            Init
+          </Button>
+          <Button
+            variant="outline"
+            disabled={!model || is_training}
+            onClick={addEpoch}
+            className="flex-grow basis-[calc(50%-0.25rem)] sm:basis-0 text-xs sm:text-sm"
+          >
+            +100
+          </Button>
+          <Button 
+            variant="outline" 
+            disabled={!model || is_training} 
+            className="flex-grow basis-[calc(50%-0.25rem)] sm:basis-0 text-xs sm:text-sm"
+          >
+            Step
+          </Button>
+          <Button 
+            variant="outline" 
+            disabled={!model || is_training} 
+            className="flex-grow basis-[calc(50%-0.25rem)] sm:basis-0 text-xs sm:text-sm"
+          >
+            Phase
+          </Button>
+        </div>
+      </div>
+      <ControlPanelStyles />
     </div>
   );
 };
+
+const controlPanelStyles = `
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #4a4550 #3a3540;
+    transition: scrollbar-color 0.3s ease;
+  }
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #3a3540;
+    border-radius: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #4a4550;
+    border-radius: 4px;
+    transition: background 0.3s ease;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #5a5560;
+  }
+`;
+
+function ControlPanelStyles() {
+  return <style jsx global>{controlPanelStyles}</style>;
+}
 
 export default ControlPanel;
