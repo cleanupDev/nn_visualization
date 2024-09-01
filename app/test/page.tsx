@@ -3,10 +3,13 @@
 import dynamic from 'next/dynamic'
 import { ErrorBoundary, FallbackProps } from 'react-error-boundary'
 import { useState, useCallback } from 'react'
-import { NeuralNetController } from '@/components/testingComponents/neuralNetController'
+import { NeuralNetController } from '@/components/visualization/neuralNetController'
 import { ImprovedButtonControlledSidebarMenu } from '@/components/sidecards/improved-button-controlled-sidebar-menu'
+import ControllPanel from '@/components/controllPanel/ControllPanel'
+import LayerControlCard from '@/components/sidecards/LayerControllCard'
+import LayerInfoCard from '@/components/sidecards/LayerInfoCard'
 
-const NeuralNetVisualization = dynamic(() => import('@/components/testingComponents/neural-net-visualization'), { ssr: false })
+const NeuralNetVisualization = dynamic(() => import('@/components/visualization/neural-net-visualization'), { ssr: false })
 
 function ErrorFallback({ error }: FallbackProps) {
   return (
@@ -59,26 +62,15 @@ export default function TestPage() {
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
       <NeuralNetVisualization controller={controller}>
-        <div className="container mx-auto p-4 relative">
-          <h1 className="text-2xl font-bold mb-4 text-white">Neural Network Visualization Test</h1>
-          <p className="text-white mb-4">This is an example of content overlaid on the neural network visualization.</p>
-          <div className="flex space-x-2">
-            <button
-              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-              onClick={() => addNeuron(1)}
-            >
-              Add Neuron to Layer 1
-            </button>
-            <button
-              className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
-              onClick={removeNeuron}
-            >
-              Remove First Neuron
-            </button>
-          </div>
+        <div className='absolute top-0 left-0'>
+          <ControllPanel />
         </div>
       </NeuralNetVisualization>
-      <ImprovedButtonControlledSidebarMenu />
+      <ImprovedButtonControlledSidebarMenu>
+        <LayerControlCard />
+        <LayerInfoCard />
+        {/* Add more cards here in the future */}
+      </ImprovedButtonControlledSidebarMenu>
     </ErrorBoundary>
   )
 }

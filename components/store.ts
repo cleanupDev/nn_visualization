@@ -32,6 +32,7 @@ interface ModelInfo {
     curr_phase: string;
     curr_epoch: number;
     is_training: boolean;
+    inputShape: number[];
 }
 
 type ModelStore = ModelInfo & ModelActions;
@@ -50,6 +51,7 @@ export const useModelStore = create<ModelStore>((set) => ({
     curr_phase: "training",
     curr_epoch: 0,
     is_training: false,
+    inputShape: [2], // TODO: Make this dynamic based on the input neurons
     setModel: (model: tf.LayersModel | null) => set({ model }),
     setNumNeurons: (num: number) => set({ num_neurons: num }),
     setNumLayers: (num: number) => set({ num_layers: num }),

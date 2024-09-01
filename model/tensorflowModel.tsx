@@ -4,6 +4,7 @@
 import * as tf from "@tensorflow/tfjs";
 import { useModelStore } from "@/components/store";
 
+// TODO: Make this dynamic based on the input neurons
 export const inputData = tf.tensor([
   [0, 0],
   [0, 1],
@@ -17,14 +18,14 @@ export const targetData = tf.tensor([[0], [1], [1], [0]]);
 export const targetTensor = targetData.reshape([4, 1]);
 
 export const createAndCompileModel = () => {
-  const { input_neurons, output_neurons, layers, setNumParams } =
+  const { input_neurons, output_neurons, layers, inputShape, setNumParams } =
     useModelStore.getState(); // Using getState to access the store outside of React components
 
   const model = tf.sequential();
 
   model.add(
     tf.layers.inputLayer({
-      inputShape: [2],
+      inputShape: inputShape,
     })
   );
 

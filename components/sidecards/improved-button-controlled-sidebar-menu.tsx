@@ -1,11 +1,15 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, ReactNode } from 'react'
 import { Menu, X } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 
-export function ImprovedButtonControlledSidebarMenu() {
-  const [isOpen, setIsOpen] = useState(false)
+interface SidebarMenuProps {
+  children: ReactNode
+}
+
+export function ImprovedButtonControlledSidebarMenu({ children }: SidebarMenuProps) {
+  const [isOpen, setIsOpen] = useState(true)
 
   const toggleMenu = useCallback(() => {
     setIsOpen(prevState => !prevState)
@@ -39,28 +43,21 @@ export function ImprovedButtonControlledSidebarMenu() {
 
       {/* Sidebar */}
       <div
-        className={`fixed inset-y-4 right-4 w-80 bg-background border border-border rounded-lg shadow-lg transition-transform duration-300 ease-in-out z-50 ${
+        className={`fixed inset-y-4 right-4 w-80 bg-background border border-border rounded-lg shadow-lg transition-transform duration-300 ease-in-out z-40 ${
           isOpen ? 'translate-x-0' : 'translate-x-[calc(100%+16px)]'
         }`}
       >
-        <div className="p-4 h-full overflow-y-auto">
+        <div className="p-4 h-full flex flex-col">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold">Menu</h2>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleMenu}
-              aria-label="Retract menu"
-            >
-              <X size={20} />
-            </Button>
+            
           </div>
           
-          {/* Info Cards */}
-          <div className="space-y-4">
-            <InfoCard title="Card 1" content="This is the content for card 1." />
-            <InfoCard title="Card 2" content="This is the content for card 2." />
-            <InfoCard title="Card 3" content="This is the content for card 3." />
+          {/* Scrollable area for cards */}
+          <div className="flex-grow overflow-y-auto">
+            <div className="space-y-4 pr-4">
+              {children}
+            </div>
           </div>
         </div>
       </div>
