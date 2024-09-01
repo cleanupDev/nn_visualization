@@ -107,7 +107,7 @@ export class NeuralNetController {
         for (let k = 0; k < endLayer; k++) {
           const startNeuron = this.neurons[startOffset + j]
           const endNeuron = this.neurons[endOffset + k]
-          const strength = (startNeuron.activation + endNeuron.activation) / 2
+          const strength = endNeuron.activation //(startNeuron.activation + endNeuron.activation) / 2
           this.connections.push({
             id: `connection-${connectionId++}`,
             startNeuronId: startNeuron.id,

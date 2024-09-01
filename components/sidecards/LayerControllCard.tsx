@@ -35,7 +35,7 @@ const LayerControlCard = () => {
   };
 
   const handleAddLayer = () => {
-    if (layers.length < 3) {
+    if (layers.length < 5) {
       const newLayers = [
         ...layers,
         { name: `Layer ${layers.length + 1}`, neurons: 1 },
@@ -52,7 +52,7 @@ const LayerControlCard = () => {
   };
 
   const handleAddNeuron = (index: number) => {
-    if (layers[index].neurons >= 4) return;
+    if (layers[index].neurons >= 10) return;
     const newLayers = layers.map((layer, idx) =>
       idx === index ? { ...layer, neurons: layer.neurons + 1 } : layer
     );
@@ -129,7 +129,8 @@ const LayerControlCard = () => {
         </CardContent>
         <CardFooter>
           <CardDescription>
-            Dynamic model information updated in real-time
+            Layer Information
+            WARNING: large number of neurons may cause performance issues.
           </CardDescription>
         </CardFooter>
       </Card>

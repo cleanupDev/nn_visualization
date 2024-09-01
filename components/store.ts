@@ -105,7 +105,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
                 id: `neuron-${state.neurons.length}`,
                 position: { x: 0, y: 0, z: 0 }, // Initial position, will be recalculated
                 layer,
-                bias: Math.random() - 0.5,
+                bias: 0, // Math.random() - 0.5,
                 weights: [],
                 activation: 'relu', // Default activation, adjust as needed
             };

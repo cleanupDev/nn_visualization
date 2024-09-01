@@ -19,8 +19,8 @@ export default function Connection({ connection, neurons }: { connection: Connec
     <Line
       points={[startNeuron.position, endNeuron.position]}
       color={color}
-      lineWidth={Math.abs(connection.strength) * 5}
-      onClick={() => console.log('Connection clicked')}
+      lineWidth={2 + Math.abs(connection.strength) * 5}
+      onClick={() => console.log('Connection clicked | Connection strength:', connection.strength)}
     />
   )
 }

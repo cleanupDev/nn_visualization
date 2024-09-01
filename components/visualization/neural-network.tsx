@@ -37,7 +37,7 @@ export default function NeuralNetwork({ controller }: { controller: NeuralNetCon
         <Neuron
           key={neuron.id}
           neuron={neuron}
-          onDrag={(newPosition) => updateNeuronPosition(neuron.id, newPosition)}
+          //onDrag={(newPosition) => updateNeuronPosition(neuron.id, newPosition)}
           isRealigning={false}
         />
       ))}
