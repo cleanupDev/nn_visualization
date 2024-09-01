@@ -2,7 +2,7 @@
 
 // Assuming this is in a separate file like utils/modelCreation.ts
 import * as tf from "@tensorflow/tfjs";
-import { useModelStore } from "@/components/store";
+import { Neuron, useModelStore } from "@/components/store";
 
 // TODO: Make this dynamic based on the input neurons
 export const inputData = tf.tensor([
@@ -23,7 +23,7 @@ export const createAndCompileModel = () => {
 
   const model = tf.sequential();
 
-  const neurons = [];
+  const neurons: Neuron[] = [];
 
   model.add(
     tf.layers.inputLayer({
@@ -91,7 +91,7 @@ export const createAndCompileModel = () => {
     metrics: ["accuracy"],
   });
 
-  setNeurons(neurons);
+  setNeurons((prevNeurons) => neurons);
 
   const numParams = model.countParams();
   setNumParams(numParams); // Update the number of parameters in the store

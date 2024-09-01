@@ -18,7 +18,7 @@ interface ModelActions {
     setIsTraining: (isTraining: boolean) => void;
     updateNumParams: () => void;
     resetModelData: () => void;
-    setNeurons: (neurons: Neuron[]) => void;
+    setNeurons: (updater: (prevNeurons: Neuron[]) => Neuron[]) => void;
     addNeuron: (layer: number) => void;
     removeNeuron: (neuronId: string) => void;
 }
@@ -40,7 +40,7 @@ interface ModelInfo {
     neurons: Neuron[];
 }
 
-interface Neuron {
+export interface Neuron {
     id: string;
     position: { x: number; y: number; z: number };
     layer: number;
@@ -96,7 +96,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
             curr_epoch: 0,
         });
     },
-    setNeurons: (neurons: Neuron[]) => set({ neurons }),
+    setNeurons: (updater) => set((state) => ({ neurons: updater(state.neurons) })),
     addNeuron: (layer: number) => set((state) => {
         const newLayers = [...state.layers];
         if (layer >= 0 && layer < newLayers.length) {

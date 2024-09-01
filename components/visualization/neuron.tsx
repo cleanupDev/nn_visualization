@@ -1,11 +1,11 @@
 import React, { useMemo, useRef, useState, useCallback } from 'react'
-import { useThree, useFrame } from '@react-three/fiber'
-import { Color, Vector3, Plane } from 'three'
+import { useThree, useFrame, ThreeEvent } from '@react-three/fiber'
+import { Color, Vector3, Plane, Mesh } from 'three'
 import { useSpring, animated } from '@react-spring/three'
 import { Neuron as NeuronType } from './neuralNetController'
 
 export default function Neuron({ neuron, isRealigning }: { neuron: NeuronType; isRealigning: boolean }) {
-  const meshRef = useRef<THREE.Mesh>(null)
+  const meshRef = useRef<Mesh>(null)
   const { camera, raycaster, mouse } = useThree()
   const [isDragging, setIsDragging] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
@@ -19,7 +19,7 @@ export default function Neuron({ neuron, isRealigning }: { neuron: NeuronType; i
   const neuronColor = useMemo(() => new Color('#1971c2'), [])
   const hoverColor = useMemo(() => neuronColor.clone().lerp(new Color(1, 1, 1), 0.3), [neuronColor])
 
-  const onPointerDown = useCallback((event: THREE.Event) => {
+  const onPointerDown = useCallback((event: ThreeEvent<PointerEvent>) => {
     event.stopPropagation()
     setIsDragging(true)
   }, [])
@@ -28,12 +28,14 @@ export default function Neuron({ neuron, isRealigning }: { neuron: NeuronType; i
     setIsDragging(false)
   }, [])
 
-  const onPointerMove = useCallback((event: THREE.Event) => {
+  const onPointerMove = useCallback((event: ThreeEvent<PointerEvent>) => {
     if (isDragging) {
       raycaster.setFromCamera(mouse, camera)
       const intersectionPoint = new Vector3()
       if (raycaster.ray.intersectPlane(dragPlane, intersectionPoint)) {
-        onDrag(intersectionPoint)
+        // Handle drag logic here if needed
+        // For now, we'll just log the intersection point
+        console.log('Drag intersection point:', intersectionPoint)
       }
     }
   }, [isDragging, camera, mouse, dragPlane, raycaster])
@@ -60,10 +62,10 @@ export default function Neuron({ neuron, isRealigning }: { neuron: NeuronType; i
   return (
     <animated.mesh
       ref={meshRef}
-      position={animatedPosition}
+      position={animatedPosition as any} // Type assertion to avoid type mismatch
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
-      //onPointerMove={onPointerMove}
+      onPointerMove={onPointerMove}
       onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
       onClick={onClick}

@@ -7,7 +7,7 @@ import {
   inputTensor,
   targetTensor,
 } from "@/model/tensorflowModel";
-import { useModelStore } from "@/components/store";
+import { Neuron, useModelStore } from '../store';
 import * as tf from "@tensorflow/tfjs";
 
 const ControlPanel = () => {
@@ -77,22 +77,24 @@ const ControlPanel = () => {
   };
 
   const updateWeightsAndBiases = (model: tf.LayersModel) => {
-
-    model.layers.forEach((layer, index) => {
-        const weights = layer.getWeights()[0];
-        const biases = layer.getWeights()[1];
+    model.layers.forEach((layer) => {
+      const weights = layer.getWeights()[0];
+      const biases = layer.getWeights()[1];
+      if (weights && biases) {
         setNeurons((prevNeurons) => {
           return prevNeurons.map((neuron, neuronIndex) => {
+            const weightData = weights.arraySync() as number[][];
+            const biasData = biases.arraySync() as number[];
             return {
               ...neuron,
-              weights: weights.slice(neuronIndex * weights.shape[1], (neuronIndex + 1) * weights.shape[1]),
-              bias: biases[neuronIndex],
+              weights: weightData[neuronIndex] || neuron.weights,
+              bias: biasData[neuronIndex] || neuron.bias,
             };
           });
         });
+      }
     });
   };
-    
 
   const manualForwardPass = async () => {
     if (!model) return;
