@@ -6,8 +6,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "MLP Visualizer",
-  description: "Visualize your neural network",
+  title: "NN Visualizer",
+  description: "Visualize a simple neural network",
 };
 
 export default function RootLayout({
