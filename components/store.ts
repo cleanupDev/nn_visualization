@@ -19,6 +19,8 @@ interface ModelActions {
     updateNumParams: () => void;
     resetModelData: () => void;
     setNeurons: (neurons: Neuron[]) => void;
+    addNeuron: (layer: number) => void;
+    removeNeuron: (neuronId: string) => void;
 }
 
 interface ModelInfo {
@@ -50,7 +52,7 @@ interface Neuron {
 type ModelStore = ModelInfo & ModelActions;
 
 
-export const useModelStore = create<ModelStore>((set) => ({
+export const useModelStore = create<ModelStore>((set, get) => ({
     model: null,
     input_neurons: 2,
     output_neurons: 1,
@@ -95,5 +97,36 @@ export const useModelStore = create<ModelStore>((set) => ({
         });
     },
     setNeurons: (neurons: Neuron[]) => set({ neurons }),
+    addNeuron: (layer: number) => set((state) => {
+        const newLayers = [...state.layers];
+        if (layer >= 0 && layer < newLayers.length) {
+            newLayers[layer].neurons++;
+            const newNeuron: Neuron = {
+                id: `neuron-${state.neurons.length}`,
+                position: { x: 0, y: 0, z: 0 }, // Initial position, will be recalculated
+                layer,
+                bias: Math.random() - 0.5,
+                weights: [],
+                activation: 'relu', // Default activation, adjust as needed
+            };
+            return {
+                layers: newLayers,
+                neurons: [...state.neurons, newNeuron],
+            };
+        }
+        return state;
+    }),
+    removeNeuron: (neuronId: string) => set((state) => {
+        const neuronIndex = state.neurons.findIndex(n => n.id === neuronId);
+        if (neuronIndex === -1) return state;
 
+        const neuron = state.neurons[neuronIndex];
+        const newLayers = [...state.layers];
+        newLayers[neuron.layer].neurons--;
+
+        return {
+            layers: newLayers,
+            neurons: state.neurons.filter(n => n.id !== neuronId),
+        };
+    }),
 }));

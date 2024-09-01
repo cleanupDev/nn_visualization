@@ -1,4 +1,5 @@
 import { Vector3 } from 'three'
+import { useModelStore } from '../store'
 
 export interface Neuron {
   id: string
@@ -6,14 +7,6 @@ export interface Neuron {
   activation: number
   layer: number
   type: 'hidden' | 'input' | 'output'
-}
-
-export interface InputNeuron extends Neuron {
-  type: 'input'
-}
-
-export interface OutputNeuron extends Neuron {
-  type: 'output'
 }
 
 export interface Connection {
@@ -26,51 +19,69 @@ export interface Connection {
 export class NeuralNetController {
   private neurons: Neuron[] = []
   private connections: Connection[] = []
-  private layers: number[] = []
 
-  constructor(initialLayers: number[]) {
-    this.layers = initialLayers
+  constructor() {
     this.initializeNetwork()
   }
 
   private initializeNetwork() {
-    let neuronId = 0
-    this.neurons = []
+    const { layers, neurons, input_neurons, output_neurons } = useModelStore.getState()
+    
+    // Create input neurons
+    for (let i = 0; i < input_neurons; i++) {
+      this.neurons.push(this.createNeuron(i, 0, 'input'))
+    }
+
+    // Create hidden neurons
+    layers.forEach((layer, layerIndex) => {
+      for (let i = 0; i < layer.neurons; i++) {
+        this.neurons.push(this.createNeuron(i, layerIndex + 1, 'hidden'))
+      }
+    })
+
+    // Create output neurons
+    for (let i = 0; i < output_neurons; i++) {
+      this.neurons.push(this.createNeuron(i, layers.length + 1, 'output'))
+    }
+
     this.recalculatePositions()
   }
 
+  private createNeuron(index: number, layer: number, type: 'input' | 'hidden' | 'output'): Neuron {
+    return {
+      id: `${type}-${layer}-${index}`,
+      position: new Vector3(0, 0, 0),
+      activation: Math.random(),
+      layer,
+      type
+    }
+  }
+
+  private getNeuronType(layer: number, totalLayers: number): 'input' | 'hidden' | 'output' {
+    if (layer === 0) return 'input'
+    if (layer === totalLayers - 1) return 'output'
+    return 'hidden'
+  }
+
   private recalculatePositions() {
+    const { layers } = useModelStore.getState()
     const spacing = 2
-    const totalLayers = this.layers.length
+    const totalLayers = layers.length
 
     let currentNeuronIndex = 0
-    this.layers.forEach((neuronsInLayer, layerIndex) => {
+    layers.forEach((layer, layerIndex) => {
+      const neuronsInLayer = layer.neurons
       const layerOffset = (totalLayers - 1) / 2 - layerIndex
       for (let i = 0; i < neuronsInLayer; i++) {
         const verticalOffset = (neuronsInLayer - 1) / 2 - i
         const newPosition = new Vector3(layerOffset * spacing, verticalOffset * spacing, 0)
         
         if (currentNeuronIndex < this.neurons.length) {
-          // Update existing neuron position
           this.neurons[currentNeuronIndex].position = newPosition
-        } else {
-          // Add new neuron
-          this.neurons.push({
-            id: `neuron-${currentNeuronIndex}`,
-            position: newPosition,
-            activation: Math.random(),
-            layer: layerIndex,
-            type: 'hidden' // or 'input'/'output' based on your logic
-          })
         }
         currentNeuronIndex++
       }
     })
-
-    // Remove any excess neurons
-    if (currentNeuronIndex < this.neurons.length) {
-      this.neurons.splice(currentNeuronIndex)
-    }
 
     this.updateConnections()
   }
@@ -79,12 +90,13 @@ export class NeuralNetController {
     this.connections = []
     let connectionId = 0
     let currentIndex = 0
+    const { layers } = useModelStore.getState()
 
-    for (let i = 0; i < this.layers.length - 1; i++) {
-      for (let j = 0; j < this.layers[i]; j++) {
+    for (let i = 0; i < layers.length - 1; i++) {
+      for (let j = 0; j < layers[i].neurons; j++) {
         const startNeuronIndex = currentIndex + j
-        for (let k = 0; k < this.layers[i + 1]; k++) {
-          const endNeuronIndex = currentIndex + this.layers[i] + k
+        for (let k = 0; k < layers[i + 1].neurons; k++) {
+          const endNeuronIndex = currentIndex + layers[i].neurons + k
           const startNeuron = this.neurons[startNeuronIndex]
           const endNeuron = this.neurons[endNeuronIndex]
           const strength = (startNeuron.activation + endNeuron.activation) / 2
@@ -96,7 +108,7 @@ export class NeuralNetController {
           })
         }
       }
-      currentIndex += this.layers[i]
+      currentIndex += layers[i].neurons
     }
   }
 
@@ -108,45 +120,11 @@ export class NeuralNetController {
     return this.connections
   }
 
-  addNeuron(layer: number) {
-    if (layer < 0 || layer >= this.layers.length) {
-      throw new Error('Invalid layer')
-    }
+  // ... (keep other methods like updateNeuronPosition, updateNeuronActivation)
 
-    this.layers[layer]++
-    this.recalculatePositions()
-    return this.neurons[this.neurons.length - 1]
-  }
+  // Remove addNeuron and removeNeuron methods as they should be handled by the store
 
-  removeNeuron(neuronId: string) {
-    const index = this.neurons.findIndex(n => n.id === neuronId)
-    if (index === -1) {
-      throw new Error('Neuron not found')
-    }
-
-    const removedNeuron = this.neurons[index]
-    this.layers[removedNeuron.layer]--
-    this.recalculatePositions()
-
-    return removedNeuron
-  }
-
-  updateNeuronPosition(neuronId: string, newPosition: Vector3) {
-    const neuron = this.neurons.find(n => n.id === neuronId)
-    if (!neuron) {
-      throw new Error('Neuron not found')
-    }
-
-    neuron.position = newPosition
-  }
-
-  updateNeuronActivation(neuronId: string, newActivation: number) {
-    const neuron = this.neurons.find(n => n.id === neuronId)
-    if (!neuron) {
-      throw new Error('Neuron not found')
-    }
-
-    neuron.activation = newActivation
-    this.updateConnections()
+  updateFromStore() {
+    this.initializeNetwork()
   }
 }

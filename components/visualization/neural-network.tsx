@@ -2,15 +2,22 @@ import React, { useState, useCallback, useEffect } from 'react'
 import { NeuralNetController, Neuron as NeuronType, Connection as ConnectionType } from './neuralNetController'
 import Neuron from './neuron'
 import Connection from './connection'
+import { useModelStore } from '../store'
 
 export default function NeuralNetwork({ controller }: { controller: NeuralNetController }) {
   const [neurons, setNeurons] = useState(controller.getNeurons())
   const [connections, setConnections] = useState(controller.getConnections())
+  const { layers } = useModelStore()
 
   const updateVisualization = useCallback(() => {
+    controller.updateFromStore()
     setNeurons(controller.getNeurons())
     setConnections(controller.getConnections())
   }, [controller])
+
+  useEffect(() => {
+    updateVisualization()
+  }, [layers, updateVisualization])
 
   useEffect(() => {
     (window as any).updateNeuralNetVisualization = updateVisualization

@@ -72,7 +72,6 @@ const ControlPanel = () => {
   const updateWeightsAndBiases = (model: tf.LayersModel) => {
 
     model.layers.forEach((layer, index) => {
-      if (layer instanceof tf.layers.Dense) {
         const weights = layer.getWeights()[0];
         const biases = layer.getWeights()[1];
         setNeurons((prevNeurons) => {
@@ -84,7 +83,6 @@ const ControlPanel = () => {
             };
           });
         });
-      }
     });
   };
     

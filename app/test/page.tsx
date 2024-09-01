@@ -2,12 +2,13 @@
 
 import dynamic from 'next/dynamic'
 import { ErrorBoundary, FallbackProps } from 'react-error-boundary'
-import { useState, useCallback } from 'react'
+import { useEffect } from 'react'
 import { NeuralNetController } from '@/components/visualization/neuralNetController'
 import { ImprovedButtonControlledSidebarMenu } from '@/components/sidecards/improved-button-controlled-sidebar-menu'
 import ControllPanel from '@/components/controllPanel/ControllPanel'
 import LayerControlCard from '@/components/sidecards/LayerControllCard'
 import LayerInfoCard from '@/components/sidecards/LayerInfoCard'
+import { useModelStore } from '@/components/store'
 
 const NeuralNetVisualization = dynamic(() => import('@/components/visualization/neural-net-visualization'), { ssr: false })
 
@@ -21,43 +22,19 @@ function ErrorFallback({ error }: FallbackProps) {
 }
 
 export default function TestPage() {
-  const [controller] = useState(() => {
-    console.log("Creating NeuralNetController in TestPage");
-    return new NeuralNetController([3, 4, 4, 2]);
-  });
+  const { layers, neurons } = useModelStore()
 
-  const addNeuron = useCallback((layer: number) => {
-    console.log(`Adding neuron to layer ${layer}`);
-    controller.addNeuron(layer);
-    console.log("Controller after adding neuron:", controller.getNeurons());
-    // Update the visualization
-    if (typeof window !== 'undefined' && (window as any).updateNeuralNetVisualization) {
-      console.log("Calling updateNeuralNetVisualization");
-      (window as any).updateNeuralNetVisualization();
-    } else {
-      console.log("updateNeuralNetVisualization is not available");
+  useEffect(() => {
+    // Initialize the store with some default layers if it's empty
+    if (layers.length === 0) {
+      useModelStore.getState().setLayers([
+        { name: 'Hidden 1', neurons: 4 },
+        { name: 'Hidden 2', neurons: 4 },
+      ])
     }
-  }, [controller]);
+  }, [layers])
 
-  const removeNeuron = useCallback(() => {
-    const neurons = controller.getNeurons();
-    if (neurons.length > 0) {
-      console.log(`Removing neuron: ${neurons[0].id}`);
-      controller.removeNeuron(neurons[0].id);
-      console.log("Controller after removing neuron:", controller.getNeurons());
-      // Update the visualization
-      if (typeof window !== 'undefined' && (window as any).updateNeuralNetVisualization) {
-        console.log("Calling updateNeuralNetVisualization");
-        (window as any).updateNeuralNetVisualization();
-      } else {
-        console.log("updateNeuralNetVisualization is not available");
-      }
-    } else {
-      console.log("No neurons to remove");
-    }
-  }, [controller]);
-
-  console.log("Rendering TestPage");
+  const controller = new NeuralNetController()
 
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
@@ -69,7 +46,6 @@ export default function TestPage() {
       <ImprovedButtonControlledSidebarMenu>
         <LayerControlCard />
         <LayerInfoCard />
-        {/* Add more cards here in the future */}
       </ImprovedButtonControlledSidebarMenu>
     </ErrorBoundary>
   )
