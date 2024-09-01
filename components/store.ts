@@ -56,9 +56,9 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     model: null,
     input_neurons: 2,
     output_neurons: 1,
-    num_neurons: 1,
-    num_layers: 0,
-    layers: [],
+    num_neurons: 3, // 2 input + 1 output
+    num_layers: 1, // Only count hidden layers
+    layers: [], // Start with no hidden layers
     num_params: "N/A",
     curr_acc: "N/A",
     curr_loss: "N/A",

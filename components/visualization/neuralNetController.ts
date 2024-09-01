@@ -25,8 +25,9 @@ export class NeuralNetController {
   }
 
   private initializeNetwork() {
-    const { layers, neurons, input_neurons, output_neurons } = useModelStore.getState()
-    
+    const { layers, input_neurons, output_neurons } = useModelStore.getState()
+    this.neurons = []
+
     // Create input neurons
     for (let i = 0; i < input_neurons; i++) {
       this.neurons.push(this.createNeuron(i, 0, 'input'))
@@ -57,48 +58,55 @@ export class NeuralNetController {
     }
   }
 
-  private getNeuronType(layer: number, totalLayers: number): 'input' | 'hidden' | 'output' {
-    if (layer === 0) return 'input'
-    if (layer === totalLayers - 1) return 'output'
-    return 'hidden'
-  }
-
   private recalculatePositions() {
-    const { layers } = useModelStore.getState()
+    const { layers, input_neurons, output_neurons } = useModelStore.getState()
     const spacing = 2
-    const totalLayers = layers.length
+    const totalLayers = layers.length + 2 // input + hidden layers + output
 
     let currentNeuronIndex = 0
+
+    // Position input neurons (now on the left)
+    this.positionNeuronsInLayer(input_neurons, 0, totalLayers, spacing, currentNeuronIndex)
+    currentNeuronIndex += input_neurons
+
+    // Position hidden neurons
     layers.forEach((layer, layerIndex) => {
-      const neuronsInLayer = layer.neurons
-      const layerOffset = (totalLayers - 1) / 2 - layerIndex
-      for (let i = 0; i < neuronsInLayer; i++) {
-        const verticalOffset = (neuronsInLayer - 1) / 2 - i
-        const newPosition = new Vector3(layerOffset * spacing, verticalOffset * spacing, 0)
-        
-        if (currentNeuronIndex < this.neurons.length) {
-          this.neurons[currentNeuronIndex].position = newPosition
-        }
-        currentNeuronIndex++
-      }
+      this.positionNeuronsInLayer(layer.neurons, layerIndex + 1, totalLayers, spacing, currentNeuronIndex)
+      currentNeuronIndex += layer.neurons
     })
 
+    // Position output neurons (now on the right)
+    this.positionNeuronsInLayer(output_neurons, totalLayers - 1, totalLayers, spacing, currentNeuronIndex)
+
     this.updateConnections()
+  }
+
+  private positionNeuronsInLayer(neuronsInLayer: number, layerIndex: number, totalLayers: number, spacing: number, startIndex: number) {
+    // Reverse the x-position calculation
+    const layerOffset = layerIndex - (totalLayers - 1) / 2
+    for (let i = 0; i < neuronsInLayer; i++) {
+      const verticalOffset = (neuronsInLayer - 1) / 2 - i
+      const newPosition = new Vector3(layerOffset * spacing, verticalOffset * spacing, 0)
+      this.neurons[startIndex + i].position = newPosition
+    }
   }
 
   private updateConnections() {
     this.connections = []
     let connectionId = 0
-    let currentIndex = 0
-    const { layers } = useModelStore.getState()
+    const { layers, input_neurons, output_neurons } = useModelStore.getState()
+    const allLayers = [input_neurons, ...layers.map(l => l.neurons), output_neurons]
 
-    for (let i = 0; i < layers.length - 1; i++) {
-      for (let j = 0; j < layers[i].neurons; j++) {
-        const startNeuronIndex = currentIndex + j
-        for (let k = 0; k < layers[i + 1].neurons; k++) {
-          const endNeuronIndex = currentIndex + layers[i].neurons + k
-          const startNeuron = this.neurons[startNeuronIndex]
-          const endNeuron = this.neurons[endNeuronIndex]
+    for (let i = 0; i < allLayers.length - 1; i++) {
+      const startLayer = allLayers[i]
+      const endLayer = allLayers[i + 1]
+      const startOffset = allLayers.slice(0, i).reduce((sum, n) => sum + n, 0)
+      const endOffset = startOffset + startLayer
+
+      for (let j = 0; j < startLayer; j++) {
+        for (let k = 0; k < endLayer; k++) {
+          const startNeuron = this.neurons[startOffset + j]
+          const endNeuron = this.neurons[endOffset + k]
           const strength = (startNeuron.activation + endNeuron.activation) / 2
           this.connections.push({
             id: `connection-${connectionId++}`,
@@ -108,7 +116,6 @@ export class NeuralNetController {
           })
         }
       }
-      currentIndex += layers[i].neurons
     }
   }
 

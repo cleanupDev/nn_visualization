@@ -24,15 +24,7 @@ function ErrorFallback({ error }: FallbackProps) {
 export default function TestPage() {
   const { layers, neurons } = useModelStore()
 
-  useEffect(() => {
-    // Initialize the store with some default layers if it's empty
-    if (layers.length === 0) {
-      useModelStore.getState().setLayers([
-        { name: 'Hidden 1', neurons: 4 },
-        { name: 'Hidden 2', neurons: 4 },
-      ])
-    }
-  }, [layers])
+  // Remove the useEffect that adds default layers
 
   const controller = new NeuralNetController()
 
