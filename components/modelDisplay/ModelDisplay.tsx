@@ -163,7 +163,7 @@ const ModelDisplay = () => {
       updateLayerNeurons();
       updateConnections();
     }
-  }, [input_neurons, layers, output_neurons]);
+  }, [input_neurons, layers, output_neurons, columnWidth]); // Add columnWidth to the dependency array
 
   return (
     <div>

@@ -7,13 +7,13 @@ export default function Connection({ connection, neurons }: { connection: Connec
   const startNeuron = neurons.find(n => n.id === connection.startNeuronId)
   const endNeuron = neurons.find(n => n.id === connection.endNeuronId)
 
-  if (!startNeuron || !endNeuron) {
-    return null
-  }
-
   const color = useMemo(() => {
     return connection.strength >= 0 ? new Color('#2f9e44') : new Color('#e03131')
   }, [connection.strength])
+
+  if (!startNeuron || !endNeuron) {
+    return null
+  }
 
   return (
     <Line

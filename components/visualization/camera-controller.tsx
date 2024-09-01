@@ -18,9 +18,9 @@ export default function CameraController() {
     config: { mass: 1, tension: 280, friction: 120 }
   }))
 
-  const handlePointerDown = () => {
+  const handlePointerDown = useCallback(() => {
     setIsDragging(true)
-  }
+  }, [])
 
   const handlePointerUp = useCallback(() => {
     if (isDragging) {
