@@ -100,7 +100,7 @@ export function TutorialPopupComponent() {
                 />
               ) : (
                 <Image
-                  src={tutorialSteps[currentStep].media}
+                  src={tutorialSteps[currentStep].media || "/default-placeholder.svg"}
                   alt={tutorialSteps[currentStep].title}
                   className="w-full h-full rounded-md"
                   width={300}
