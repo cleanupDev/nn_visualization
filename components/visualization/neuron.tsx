@@ -36,8 +36,6 @@ export default function Neuron({ neuron, isRealigning }: { neuron: NeuronType; i
       raycaster.setFromCamera(mouse, camera)
       const intersectionPoint = new Vector3()
       if (raycaster.ray.intersectPlane(dragPlane, intersectionPoint)) {
-        // Handle drag logic here if needed
-        // For now, we'll just log the intersection point
         console.log('Drag intersection point:', intersectionPoint)
       }
     }
@@ -63,6 +61,7 @@ export default function Neuron({ neuron, isRealigning }: { neuron: NeuronType; i
     }
   })
 
+  // TODO: replace example content for the draggable window
   const latexContent = 'When $a \\ne 0$, there are two solutions to $ax^2 + bx + c = 0$ and they are $$x = {-b \\pm \\sqrt{b^2-4ac} \\over 2a}$$'
 
   const graphData = {
@@ -108,7 +107,15 @@ export default function Neuron({ neuron, isRealigning }: { neuron: NeuronType; i
           <h2 className="text-xl font-bold mb-2">Hello, Three.js!</h2>
           <p>This is a draggable window that appeared when you clicked the box.</p>
           <p>You can move this window around the screen.</p>
-          
+          --- Testing ---
+          <p>Neuron ID: {neuron.id}</p>
+          <p>Layer: {neuron.layer}</p>
+          <p>Type: {neuron.type}</p>
+          <p>Activation: {neuron.activation}</p>
+          <p>Weight: {neuron.weight}</p>
+          <p>Bias: {neuron.bias}</p>
+          <p>Activation function: {neuron.activationFunction}</p>
+          ---------------
         </DraggableWindowComponent>
       </Html>
     )}

@@ -5,6 +5,9 @@ export interface Neuron {
   id: string
   position: Vector3
   activation: number
+  weight: number
+  bias: number
+  activationFunction: 'sigmoid' | 'relu' | 'tanh'
   layer: number
   type: 'hidden' | 'input' | 'output'
 }
@@ -53,6 +56,9 @@ export class NeuralNetController {
       id: `${type}-${layer}-${index}`,
       position: new Vector3(0, 0, 0),
       activation: Math.random(),
+      weight: Math.random(),
+      bias: Math.random(),
+      activationFunction: 'relu',
       layer,
       type
     }

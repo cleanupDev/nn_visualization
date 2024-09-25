@@ -104,6 +104,8 @@ export function DraggableWindowComponent({ children, onClose, latexContent, grap
     },
   }
 
+  // TODO: change scrollbar style to match sidebar
+
   return (
     <Resizable
       width={size.width}
