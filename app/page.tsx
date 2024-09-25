@@ -9,6 +9,7 @@ import LayerControlCard from '@/components/sidecards/LayerControllCard'
 import LayerInfoCard from '@/components/sidecards/LayerInfoCard'
 import { useModelStore } from '@/components/store'
 import { GitHubLink } from '@/components/GitHubLink'
+import { TutorialPopupComponent } from '@/components/tutorial-popup'
 
 const NeuralNetVisualization = dynamic(() => import('@/components/visualization/neural-net-visualization'), { ssr: false })
 
@@ -27,6 +28,7 @@ export default function TestPage() {
 
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
+      <TutorialPopupComponent />
       <NeuralNetVisualization controller={controller}>
         <div className='absolute top-0 left-5'>
           <ControllPanel />
