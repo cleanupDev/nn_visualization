@@ -1,5 +1,6 @@
 import Image from 'next/image'
 
+// GitHub link component
 interface GitHubLinkProps {
   repoUrl: string
 }
@@ -10,7 +11,7 @@ export function GitHubLink({ repoUrl }: GitHubLinkProps) {
       href={repoUrl}
       target="_blank"
       rel="noopener noreferrer"
-      className="fixed bottom-4 left-4 z-50"
+      className="w-6 h-6"
     >
       <Image
         src="/github-mark-white.svg"

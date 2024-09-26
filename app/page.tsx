@@ -9,6 +9,7 @@ import LayerControlCard from '@/components/sidecards/LayerControllCard'
 import LayerInfoCard from '@/components/sidecards/LayerInfoCard'
 import { useModelStore } from '@/components/store'
 import { GitHubLink } from '@/components/GitHubLink'
+import { FeedbackButtonComponent } from '@/components/feedback-button'
 
 const NeuralNetVisualization = dynamic(() => import('@/components/visualization/neural-net-visualization'), { ssr: false })
 
@@ -36,7 +37,10 @@ export default function TestPage() {
         <LayerControlCard />
         <LayerInfoCard />
       </ImprovedButtonControlledSidebarMenu>
-      <GitHubLink repoUrl="https://github.com/cleanupDev/nn_visualization" />
+      <div className="fixed bottom-4 left-4 z-50 flex space-x-4">
+        <GitHubLink repoUrl="https://github.com/cleanupDev/nn_visualization" />
+        <FeedbackButtonComponent />
+      </div>
     </ErrorBoundary>
   )
 }
