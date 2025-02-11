@@ -2,12 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  createAndCompileModel,
-  inputTensor,
-  targetTensor,
-} from "@/model/tensorflowModel";
-import { Neuron, useModelStore } from '../store';
+import { createAndCompileModel } from "@/lib/model";
+import { useModelStore } from '@/components/store';
 import * as tf from "@tensorflow/tfjs";
 
 const ControlPanel = () => {
@@ -22,6 +18,9 @@ const ControlPanel = () => {
     setModel,
     setIsTraining,
     setNeurons,
+    loadDataset, // Add loadDataset
+    trainingData, // Add trainingData
+    selectedDataset, // Add selectedDataset
   } = useModelStore();
 
   const [isStylesLoaded, setIsStylesLoaded] = useState(false);
@@ -31,7 +30,11 @@ const ControlPanel = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  const createModel = () => {
+  const createModelAndLoadData = async (dataset: 'xor' | 'sine' | 'mnist') => {
+    // Load the dataset first
+    await loadDataset(dataset);
+
+    // Then create the model
     if (model) model.dispose();
     const newModel = createAndCompileModel();
     setModel(newModel);
@@ -43,11 +46,11 @@ const ControlPanel = () => {
   };
 
   const addEpoch = async () => {
-    if (!model) return;
+    if (!model || !trainingData) return; // Ensure trainingData is available
     setIsTraining(true);
 
     try {
-      const history = await model.fit(inputTensor, targetTensor, {
+      const history = await model.fit(trainingData.xs, trainingData.ys, {
         epochs: 100,
         callbacks: {
           onEpochEnd: async (epoch: number, logs: any) => {
@@ -64,11 +67,6 @@ const ControlPanel = () => {
       });
       const acc = history.history.acc ? history.history.acc[0] : null;
       const loss = history.history.loss ? history.history.loss[0] : null;
-
-      //setCurrAcc(acc);
-      //setCurrLoss(loss);
-      //setCurrPhase("training");
-      // setCurrEpoch(curr_epoch + 10);
     } catch (error) {
       console.error("Training failed:", error);
     } finally {
@@ -100,37 +98,51 @@ const ControlPanel = () => {
     if (!model) return;
   };
 
-  const addStep = async () => {};
+  const addStep = async () => { };
 
   return (
     <div className="fixed top-4 left-0 w-full px-4 sm:left-1/5 sm:w-3/5 md:w-2/5 lg:left-1/5 lg:w-1/5 z-50">
       <div className="bg-[#28242c] rounded-lg shadow-lg p-2">
         <div className={`flex flex-wrap sm:flex-nowrap gap-2 ${isStylesLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}>
-          <Button 
-            variant={model ? "outline" : "destructive"} 
-            onClick={createModel} 
+          <Button
+            variant={selectedDataset === 'xor' ? "secondary" : "outline"}
+            onClick={() => createModelAndLoadData('xor')}
             className="flex-grow basis-[calc(50%-0.25rem)] sm:basis-0 text-xs sm:text-sm"
           >
-            Init
+            XOR
+          </Button>
+          <Button
+            variant={selectedDataset === 'sine' ? "secondary" : "outline"}
+            onClick={() => createModelAndLoadData('sine')}
+            className="flex-grow basis-[calc(50%-0.25rem)] sm:basis-0 text-xs sm:text-sm"
+          >
+            Sine
+          </Button>
+          <Button
+            variant={selectedDataset === 'mnist' ? "secondary" : "outline"}
+            onClick={() => createModelAndLoadData('mnist')}
+            className="flex-grow basis-[calc(50%-0.25rem)] sm:basis-0 text-xs sm:text-sm"
+          >
+            MNIST
+          </Button>
+          <Button
+            variant="outline"
+            disabled={!model || is_training || !trainingData}
+            onClick={addEpoch}
+            className="flex-grow basis-[calc(50%-0.25rem)] sm:basis-0 text-xs sm:text-sm"
+          >
+            +100 Epochs
           </Button>
           <Button
             variant="outline"
             disabled={!model || is_training}
-            onClick={addEpoch}
-            className="flex-grow basis-[calc(50%-0.25rem)] sm:basis-0 text-xs sm:text-sm"
-          >
-            +100
-          </Button>
-          <Button 
-            variant="outline" 
-            disabled={!model || is_training} 
             className="flex-grow basis-[calc(50%-0.25rem)] sm:basis-0 text-xs sm:text-sm"
           >
             Step
           </Button>
-          <Button 
-            variant="outline" 
-            disabled={!model || is_training} 
+          <Button
+            variant="outline"
+            disabled={!model || is_training}
             className="flex-grow basis-[calc(50%-0.25rem)] sm:basis-0 text-xs sm:text-sm"
           >
             Phase
