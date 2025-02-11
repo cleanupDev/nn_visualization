@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { createAndCompileModel } from "@/lib/model";
 import { useModelStore } from '@/components/store';
 import * as tf from "@tensorflow/tfjs";
 
@@ -15,12 +14,9 @@ const ControlPanel = () => {
     setCurrLoss,
     setCurrPhase,
     setCurrEpoch,
-    setModel,
     setIsTraining,
     setNeurons,
-    loadDataset, // Add loadDataset
-    trainingData, // Add trainingData
-    selectedDataset, // Add selectedDataset
+    trainingData, // Keep trainingData
   } = useModelStore();
 
   const [isStylesLoaded, setIsStylesLoaded] = useState(false);
@@ -29,21 +25,6 @@ const ControlPanel = () => {
     const timer = setTimeout(() => setIsStylesLoaded(true), 50);
     return () => clearTimeout(timer);
   }, []);
-
-  const createModelAndLoadData = async (dataset: 'xor' | 'sine' | 'mnist') => {
-    // Load the dataset first
-    await loadDataset(dataset);
-
-    // Then create the model
-    if (model) model.dispose();
-    const newModel = createAndCompileModel();
-    setModel(newModel);
-    setCurrAcc(0);
-    setCurrLoss(0);
-    setCurrPhase("training");
-    setCurrEpoch(0);
-    updateWeightsAndBiases(newModel);
-  };
 
   const addEpoch = async () => {
     if (!model || !trainingData) return; // Ensure trainingData is available
@@ -104,27 +85,6 @@ const ControlPanel = () => {
     <div className="fixed top-4 left-0 w-full px-4 sm:left-1/5 sm:w-3/5 md:w-2/5 lg:left-1/5 lg:w-1/5 z-50">
       <div className="bg-[#28242c] rounded-lg shadow-lg p-2">
         <div className={`flex flex-wrap sm:flex-nowrap gap-2 ${isStylesLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}>
-          <Button
-            variant={selectedDataset === 'xor' ? "secondary" : "outline"}
-            onClick={() => createModelAndLoadData('xor')}
-            className="flex-grow basis-[calc(50%-0.25rem)] sm:basis-0 text-xs sm:text-sm"
-          >
-            XOR
-          </Button>
-          <Button
-            variant={selectedDataset === 'sine' ? "secondary" : "outline"}
-            onClick={() => createModelAndLoadData('sine')}
-            className="flex-grow basis-[calc(50%-0.25rem)] sm:basis-0 text-xs sm:text-sm"
-          >
-            Sine
-          </Button>
-          <Button
-            variant={selectedDataset === 'mnist' ? "secondary" : "outline"}
-            onClick={() => createModelAndLoadData('mnist')}
-            className="flex-grow basis-[calc(50%-0.25rem)] sm:basis-0 text-xs sm:text-sm"
-          >
-            MNIST
-          </Button>
           <Button
             variant="outline"
             disabled={!model || is_training || !trainingData}

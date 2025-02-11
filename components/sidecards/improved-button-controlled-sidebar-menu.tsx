@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, ReactNode } from 'react'
 import { Menu } from 'lucide-react'
 import { Button } from "@/components/ui/button"
+import DatasetSelectionCard from './DatasetSelectionCard'
 
 interface SidebarMenuProps {
   children: ReactNode
@@ -51,7 +52,7 @@ export function ImprovedButtonControlledSidebarMenu({ children }: SidebarMenuPro
       {/* Sidebar */}
       <div
         className={`fixed inset-y-4 right-4 w-80 bg-[#28242c] rounded-lg shadow-lg transition-transform duration-300 ease-in-out z-40 ${
-          isOpen ? 'translate-x-0' : 'translate-x-[calc(100%+16px)]'
+          isOpen ? 'translate-x-0' : `translate-x-[calc(100%+16px)]`
         }`}
       >
         <div className="p-4 h-full flex flex-col">
@@ -62,6 +63,7 @@ export function ImprovedButtonControlledSidebarMenu({ children }: SidebarMenuPro
           {/* Scrollable area for cards */}
           <div className={`flex-grow overflow-y-auto custom-scrollbar ${isStylesLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}>
             <div className="space-y-4 pr-4">
+              <DatasetSelectionCard />
               {children}
             </div>
           </div>

@@ -30,15 +30,15 @@ export default function TestPage() {
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
       <TutorialPopupComponent />
+      <ImprovedButtonControlledSidebarMenu>
+        <LayerControlCard />
+        <LayerInfoCard />
+      </ImprovedButtonControlledSidebarMenu>
       <NeuralNetVisualization controller={controller}>
         <div className='absolute top-0 left-5'>
           <ControllPanel />
         </div>
       </NeuralNetVisualization>
-      <ImprovedButtonControlledSidebarMenu>
-        <LayerControlCard />
-        <LayerInfoCard />
-      </ImprovedButtonControlledSidebarMenu>
       <div className="fixed bottom-4 left-4 z-50 flex space-x-4">
         <GitHubLink repoUrl="https://github.com/cleanupDev/nn_visualization" />
         <FeedbackButtonComponent />

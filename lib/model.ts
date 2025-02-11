@@ -3,12 +3,11 @@
 import * as tf from "@tensorflow/tfjs";
 import { Neuron, useModelStore } from "@/components/store";
 
-export const createAndCompileModel = () => {
+export function createAndCompileModel(inputShape: number[] = [2]) {
   const {
     input_neurons,
     output_neurons,
     layers,
-    inputShape,
     setNumParams,
     setNeurons,
     trainingData, // Get trainingData from the store
@@ -65,9 +64,9 @@ export const createAndCompileModel = () => {
   }
 
   model.compile({
-    optimizer: "rmsprop",
-    loss: "binaryCrossentropy", // Adjust loss based on dataset
-    metrics: ["accuracy"], // Adjust metrics based on dataset
+    optimizer: "sgd",
+    loss: "meanSquaredError",
+    metrics: ["accuracy"],
   });
 
   setNeurons((prevNeurons) => neurons);
@@ -76,4 +75,4 @@ export const createAndCompileModel = () => {
   setNumParams(numParams);
 
   return model;
-};
+}

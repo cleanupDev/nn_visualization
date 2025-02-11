@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import * as tf from "@tensorflow/tfjs";
 import Neuron from './visualization/neuron';
 import { MnistData, NUM_TRAIN_ELEMENTS } from '@/lib/mnist'; // Import MnistData and constants
+import { createAndCompileModel } from '@/lib/model'; // Import
 
 interface ModelActions {
   setModel: (model: tf.LayersModel | null) => void;
@@ -24,6 +25,8 @@ interface ModelActions {
   loadDataset: (datasetName: 'xor' | 'sine' | 'mnist') => Promise<void>; // New
   setInputShape: (shape: number[]) => void; // New
   setTrainingData: (data: { xs: tf.Tensor; ys: tf.Tensor } | null) => void; // New
+  createModelAndLoadData: (dataset: 'xor' | 'sine' | 'mnist') => Promise<void>; // Add this
+  updateWeightsAndBiases: (model: tf.LayersModel) => void; // Add this
 }
 
 interface ModelInfo {
@@ -191,6 +194,42 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   },
   setInputShape: (shape: number[]) => set({ inputShape: shape }), // New
   setTrainingData: (data: { xs: tf.Tensor; ys: tf.Tensor } | null) => set({ trainingData: data }), // New
+  createModelAndLoadData: async (dataset) => {
+    // Load the dataset first
+    await get().loadDataset(dataset);
+
+    // Then create the model
+    const currentModel = get().model;
+    if (currentModel) currentModel.dispose();
+    const newModel = createAndCompileModel(get().inputShape); // Pass inputShape
+    set({
+      model: newModel,
+      curr_acc: 0,
+      curr_loss: 0,
+      curr_phase: "training",
+      curr_epoch: 0
+    });
+    get().updateWeightsAndBiases(newModel); // Assuming you add this back to the store
+  },
+  updateWeightsAndBiases: (model: tf.LayersModel) => {
+    model.layers.forEach((layer) => {
+      const weights = layer.getWeights()[0];
+      const biases = layer.getWeights()[1];
+      if (weights && biases) {
+        set((state) => ({
+          neurons: state.neurons.map((neuron, neuronIndex) => {
+            const weightData = weights.arraySync() as number[][];
+            const biasData = biases.arraySync() as number[];
+            return {
+              ...neuron,
+              weights: weightData[neuronIndex] || neuron.weights, // Keep existing weights if not in this layer
+              bias: biasData[neuronIndex] || neuron.bias, // Keep existing bias if not in this layer
+            };
+          }),
+        }));
+      }
+    });
+  },
 }));
 
 // Helper function for sine wave data
