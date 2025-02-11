@@ -18,22 +18,46 @@ interface TutorialStep {
 
 const tutorialSteps: TutorialStep[] = [
   {
-    title: "Welcome to Our App!",
-    description: "This tutorial will guide you through the main features of our application.",
-    media: "/placeholder.svg",
+    title: "Welcome to Look-Inside-AI!",
+    description: "This interactive tool allows you to visualize and understand how basic neural networks work. This tutorial will guide you through the main features.",
+    media: "/placeholder.svg", // Replace with a relevant image later
     mediaType: "image"
   },
   {
-    title: "Explore the Dashboard",
-    description: "Our intuitive dashboard provides an overview of all your important information.",
-    media: "/placeholder.mp4",
-    mediaType: "video"
+    title: "Dataset Selection",
+    description: "Start by selecting a dataset from the right-hand panel. Currently, you can choose between a XOR, a Sine, and the MNIST dataset. Support for CIFAR-10 and custom datasets is planned for future releases.",
+    media: "/placeholder.svg", // Replace with a relevant image later
+    mediaType: "image"
   },
   {
-    title: "Quick Actions",
-    description: "Use quick actions to perform common tasks with just a single click.",
-    media: "/placeholder.gif",
-    mediaType: "gif"
+    title: "Model Configuration",
+    description: "In the right-hand panel, you can configure the architecture of your neural network. Add layers and adjust the number of neurons. In the future, you will also be able to select activation functions, different kinds of layers, and more.",
+    media: "/placeholder.svg", // Replace with a relevant image later
+    mediaType: "image"
+  },
+  {
+    title: "Training Visualization",
+    description: "Once you've set up your model, start the training process via the controll panel on the top-left! You'll see the network learn in real-time, with visualizations of weights and biases.",
+    media: "/placeholder.svg", // Replace with an image of the training visualization
+    mediaType: "image"
+  },
+  {
+    title: "Interactive Controls",
+    description: "During training, you can pause, resume, or reset the process. In the future you will be able to also adjust the learning rate and other hyperparameters on the fly.",
+    media: "/placeholder.svg", // Replace with a relevant image later
+    mediaType: "image"
+  },
+  {
+    title: "Detailed Neuron Information",
+    description: "Click on any neuron in the visualization to open one or more detailed windows. This window provides highly detailed information about the selected neuron, including its activation function, weights, biases, and a graph of its activity.",
+    media: "/placeholder.svg", // Add a relevant image later, perhaps a screenshot of the draggable window
+    mediaType: "image"
+  },
+  {
+    title: "Feedback",
+    description: "I value your feedback! Use the feedback button to send me your thoughts and suggestions.",
+    media: "/placeholder.svg", // Replace with a relevant image later
+    mediaType: "image"
   }
 ]
 
@@ -79,7 +103,15 @@ export function TutorialPopupComponent() {
       {isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-40" aria-hidden="true" />
       )}
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <Dialog
+        open={isOpen}
+        onOpenChange={(open) => {
+          if (!open && dontShowAgain) {
+            localStorage.setItem("shouldShowTutorial", "false");
+          }
+          setIsOpen(open);
+        }}
+      >
         <DialogContent className="w-[80vw] h-[80vh] bg-gray-800 text-white z-50">
           <DialogHeader>
             <DialogTitle>{tutorialSteps[currentStep].title}</DialogTitle>
