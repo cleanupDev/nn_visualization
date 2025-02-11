@@ -1,7 +1,6 @@
 // app/api/send-feedback/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import mailgun from 'mailgun-js';
 import { FeedbackRequest } from '../../../types/feedback';
 import Joi from 'joi';
 import { RateLimiterMemory } from 'rate-limiter-flexible';
@@ -38,35 +37,17 @@ export async function POST(req: NextRequest) {
 
   const { name, email, feedback }: FeedbackRequest = value;
 
-  // Initialize Mailgun
-  const mg = mailgun({
-    apiKey: process.env.MAILGUN_API_KEY || '',
-    domain: process.env.MAILGUN_DOMAIN || '',
-    host: 'api.eu.mailgun.net', // Changed from 'url' to 'host' based on mailgun-js documentation
+  // Log the feedback to console instead of sending email
+  console.log('Received feedback:', {
+    name,
+    email,
+    feedback
   });
 
-  const data = {
-    from: `Feedback Form <no-reply@${process.env.MAILGUN_DOMAIN}>`,
-    to: process.env.MAILGUN_RECIPIENT,
-    subject: 'New Feedback Submission',
-    text: `You have a new feedback submission:
-
-  Name: ${name}
-  Email: ${email}
-  Feedback:
-  ${feedback}`,
-  };
-
-  try {
-    await mg.messages().send(data as mailgun.messages.SendData);
-    return NextResponse.json({ message: 'Feedback sent successfully!' }, { status: 200 });
-  } catch (error) {
-    console.error('Mailgun Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to send feedback. Please try again later.' },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json(
+    { message: 'Thank you for your feedback! (Email sending is currently disabled)' },
+    { status: 200 }
+  );
 }
 
 // Optionally, handle other HTTP methods if needed
