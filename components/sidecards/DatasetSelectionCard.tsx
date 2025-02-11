@@ -30,7 +30,7 @@ ChartJS.register(
 );
 
 const DatasetSelectionCard = () => {
-  const { createModelAndLoadData, selectedDataset } = useModelStore();
+  const { createModelAndLoadData, selectedDataset, trainingData } = useModelStore();
 
   return (
     <Card className="bg-[#31303b] border-none text-white">
@@ -40,25 +40,25 @@ const DatasetSelectionCard = () => {
       <CardContent className="space-y-4">
         <div className="flex flex-wrap gap-2">
           <Button
-            variant={selectedDataset === 'xor' ? "secondary" : "outline"}
+            variant={selectedDataset === 'xor' ? 'default' : 'outline'}
             onClick={() => createModelAndLoadData('xor')}
-            className="flex-grow basis-1/3 text-xs sm:text-sm"
+            className={`flex-grow basis-1/3 text-xs sm:text-sm ${selectedDataset === 'xor' ? 'bg-white text-black' : 'bg-transparent text-white hover:bg-gray-600 hover:bg-opacity-20'}`}
           >
             XOR
           </Button>
           <Button
-            variant={selectedDataset === 'sine' ? "secondary" : "outline"}
+            variant={selectedDataset === 'sine' ? 'default' : 'outline'}
             onClick={() => createModelAndLoadData('sine')}
-            className="flex-grow basis-1/3 text-xs sm:text-sm"
+            className={`flex-grow basis-1/3 text-xs sm:text-sm ${selectedDataset === 'sine' ? 'bg-white text-black' : 'bg-transparent text-white hover:bg-gray-600 hover:bg-opacity-20'}`}
           >
             Sine
           </Button>
           <Button
-            variant={selectedDataset === 'mnist' ? "secondary" : "outline"}
+            variant={selectedDataset === 'mnist' ? 'default' : 'outline'}
             onClick={() => createModelAndLoadData('mnist')}
-            className="flex-grow basis-1/3 text-xs sm:text-sm"
+            className={`flex-grow basis-1/3 text-xs sm:text-sm ${selectedDataset === 'mnist' ? 'bg-white text-black' : 'bg-transparent text-white hover:bg-gray-600 hover:bg-opacity-20'}`}
           >
-            MNIST
+            {selectedDataset === 'mnist' && trainingData ? 'MNIST' : 'MNIST (Download)'}
           </Button>
         </div>
         <DataPreview />
