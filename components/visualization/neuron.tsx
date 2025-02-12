@@ -2,11 +2,11 @@ import React, { useMemo, useRef, useState, useCallback } from 'react'
 import { useThree, useFrame, ThreeEvent } from '@react-three/fiber'
 import { Color, Vector3, Plane, Mesh } from 'three'
 import { useSpring, animated } from '@react-spring/three'
-import { Neuron as NeuronType } from './neuralNetController'
+import { NeuronVisual } from '../store'
 import { OrbitControls, Html } from '@react-three/drei'
 import { DraggableWindowComponent } from '../draggable-window'
 
-export default function Neuron({ neuron, isRealigning }: { neuron: NeuronType; isRealigning: boolean }) {
+export default function Neuron({ neuron, isRealigning }: { neuron: NeuronVisual; isRealigning: boolean }) {
   const meshRef = useRef<Mesh>(null)
   const { camera, raycaster, mouse } = useThree()
   const [isDragging, setIsDragging] = useState(false)

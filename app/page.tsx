@@ -2,12 +2,10 @@
 
 import dynamic from 'next/dynamic'
 import { ErrorBoundary, FallbackProps } from 'react-error-boundary'
-import { NeuralNetController } from '@/components/visualization/neuralNetController'
 import { ImprovedButtonControlledSidebarMenu } from '@/components/sidecards/improved-button-controlled-sidebar-menu'
 import ControllPanel from '@/components/controllPanel/ControllPanel'
 import LayerControlCard from '@/components/sidecards/LayerControllCard'
 import LayerInfoCard from '@/components/sidecards/LayerInfoCard'
-import { useModelStore } from '@/components/store'
 import { GitHubLink } from '@/components/GitHubLink'
 import { FeedbackButtonComponent } from '@/components/feedback-button'
 import { TutorialPopupComponent } from '@/components/tutorial-popup'
@@ -23,10 +21,7 @@ function ErrorFallback({ error }: FallbackProps) {
   )
 }
 
-export default function TestPage() {
-  const { layers, neurons } = useModelStore()
-  const controller = new NeuralNetController()
-
+export default function MainPage() {
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
       <TutorialPopupComponent />
@@ -34,7 +29,7 @@ export default function TestPage() {
         <LayerControlCard />
         <LayerInfoCard />
       </ImprovedButtonControlledSidebarMenu>
-      <NeuralNetVisualization controller={controller}>
+      <NeuralNetVisualization>
         <div className='absolute top-0 left-5'>
           <ControllPanel />
         </div>
