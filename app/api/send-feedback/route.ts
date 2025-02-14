@@ -5,6 +5,12 @@ import { FeedbackRequest } from '../../../types/feedback';
 import Joi from 'joi';
 import { RateLimiterMemory } from 'rate-limiter-flexible';
 
+if (!process.env.FORMSPREE_FORM_ID) {
+  throw new Error('FORMSPREE_FORM_ID environment variable is not set');
+}
+
+const FORMSPREE_ENDPOINT = `https://formspree.io/f/${process.env.FORMSPREE_FORM_ID}`;
+
 const rateLimiter = new RateLimiterMemory({
   points: 5, // 5 submissions
   duration: 60, // per 60 seconds per IP
@@ -37,17 +43,36 @@ export async function POST(req: NextRequest) {
 
   const { name, email, feedback }: FeedbackRequest = value;
 
-  // Log the feedback to console instead of sending email
-  console.log('Received feedback:', {
-    name,
-    email,
-    feedback
-  });
+  try {
+    const formspreeResponse = await fetch(FORMSPREE_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        name,
+        email,
+        feedback,
+        _subject: `Feedback from ${name}`,
+      }),
+    });
 
-  return NextResponse.json(
-    { message: 'Thank you for your feedback! (Email sending is currently disabled)' },
-    { status: 200 }
-  );
+    if (!formspreeResponse.ok) {
+      throw new Error('Failed to submit to Formspree');
+    }
+
+    return NextResponse.json(
+      { message: 'Thank you for your feedback!' },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error('Error submitting feedback:', error);
+    return NextResponse.json(
+      { error: 'Failed to send feedback. Please try again later.' },
+      { status: 500 }
+    );
+  }
 }
 
 // Optionally, handle other HTTP methods if needed

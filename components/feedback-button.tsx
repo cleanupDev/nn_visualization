@@ -90,7 +90,7 @@ export function FeedbackButtonComponent() {
         <DialogHeader>
           <DialogTitle>Feedback</DialogTitle>
           <DialogDescription>
-            WIP - FEEDBACK IS CURRENTLY DISABLED.
+            Send us your feedback to help improve the application.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -134,7 +134,7 @@ export function FeedbackButtonComponent() {
             </div>
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={true}>             {/* disabled={status === 'loading'}> */}
+            <Button type="submit" disabled={status === 'loading'}>
               {status === 'loading' ? 'Sending...' : 'Submit Feedback'}
             </Button>
           </DialogFooter>

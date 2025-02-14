@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react'
 import { Line } from '@react-three/drei'
 import { Color } from 'three'
-import { Connection as ConnectionType, Neuron as NeuronType } from './neuralNetController'
+import { Connection as ConnectionType, NeuronVisual } from '../store'
 
-export default function Connection({ connection, neurons }: { connection: ConnectionType; neurons: NeuronType[] }) {
+export default function Connection({ connection, neurons }: { connection: ConnectionType; neurons: NeuronVisual[] }) {
   const startNeuron = neurons.find(n => n.id === connection.startNeuronId)
   const endNeuron = neurons.find(n => n.id === connection.endNeuronId)
 

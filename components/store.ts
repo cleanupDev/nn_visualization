@@ -5,6 +5,7 @@ import * as tf from "@tensorflow/tfjs";
 import Neuron from './visualization/neuron';
 import { MnistData, NUM_TRAIN_ELEMENTS } from '@/lib/mnist'; // Import MnistData and constants
 import { createAndCompileModel } from '@/lib/model'; // Import
+import { Vector3 } from 'three';
 
 interface ModelActions {
   setModel: (model: tf.LayersModel | null) => void;
@@ -57,7 +58,33 @@ export interface Neuron {
   activation: string;
 }
 
-type ModelStore = ModelInfo & ModelActions;
+export interface NeuronVisual {
+  id: string;
+  position: Vector3;
+  activation: number;
+  weight: number;
+  bias: number;
+  activationFunction: 'sigmoid' | 'relu' | 'tanh';
+  layer: number;
+  type: 'hidden' | 'input' | 'output';
+}
+
+export interface Connection {
+  id: string;
+  startNeuronId: string;
+  endNeuronId: string;
+  strength: number;
+}
+
+type ModelStore = ModelInfo & ModelActions & {
+  // Visualization state
+  visualNeurons: NeuronVisual[];
+  connections: Connection[];
+  // Visualization actions
+  initializeNetwork: () => void;
+  recalculatePositions: () => void;
+  updateConnections: () => void;
+};
 
 export const useModelStore = create<ModelStore>((set, get) => ({
   model: null,
@@ -76,6 +103,8 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   neurons: [],
   selectedDataset: null, // Initial dataset
   trainingData: null, // Initial training data
+  visualNeurons: [],
+  connections: [],
   setModel: (model: tf.LayersModel | null) => set({ model }),
   setNumNeurons: (num: number) => set({ num_neurons: num }),
   setNumLayers: (num: number) => set({ num_layers: num }),
@@ -229,6 +258,113 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         }));
       }
     });
+  },
+  initializeNetwork: () => {
+    const state = get();
+    const neurons: NeuronVisual[] = [];
+    
+    // Create input neurons
+    for (let i = 0; i < state.input_neurons; i++) {
+      neurons.push({
+        id: `input-0-${i}`,
+        position: new Vector3(0, 0, 0),
+        activation: Math.random(),
+        weight: Math.random(),
+        bias: Math.random(),
+        activationFunction: 'relu',
+        layer: 0,
+        type: 'input'
+      });
+    }
+
+    // Create hidden neurons
+    state.layers.forEach((layer, layerIndex) => {
+      for (let i = 0; i < layer.neurons; i++) {
+        neurons.push({
+          id: `hidden-${layerIndex + 1}-${i}`,
+          position: new Vector3(0, 0, 0),
+          activation: Math.random(),
+          weight: Math.random(),
+          bias: Math.random(),
+          activationFunction: 'relu',
+          layer: layerIndex + 1,
+          type: 'hidden'
+        });
+      }
+    });
+
+    // Create output neurons
+    for (let i = 0; i < state.output_neurons; i++) {
+      neurons.push({
+        id: `output-${state.layers.length + 1}-${i}`,
+        position: new Vector3(0, 0, 0),
+        activation: Math.random(),
+        weight: Math.random(),
+        bias: Math.random(),
+        activationFunction: 'sigmoid',
+        layer: state.layers.length + 1,
+        type: 'output'
+      });
+    }
+
+    set({ visualNeurons: neurons });
+    get().recalculatePositions();
+  },
+  recalculatePositions: () => {
+    const state = get();
+    const spacing = 2;
+    const totalLayers = state.layers.length + 2; // input + hidden layers + output
+    const newNeurons = [...state.visualNeurons];
+
+    let currentNeuronIndex = 0;
+    const positionNeuronsInLayer = (neuronsInLayer: number, layerIndex: number) => {
+      const layerOffset = layerIndex - (totalLayers - 1) / 2;
+      for (let i = 0; i < neuronsInLayer; i++) {
+        const verticalOffset = (neuronsInLayer - 1) / 2 - i;
+        newNeurons[currentNeuronIndex + i].position = new Vector3(
+          layerOffset * spacing,
+          verticalOffset * spacing,
+          0
+        );
+      }
+      currentNeuronIndex += neuronsInLayer;
+    };
+
+    // Position all layers
+    positionNeuronsInLayer(state.input_neurons, 0);
+    state.layers.forEach((layer, idx) => positionNeuronsInLayer(layer.neurons, idx + 1));
+    positionNeuronsInLayer(state.output_neurons, totalLayers - 1);
+
+    set({ visualNeurons: newNeurons });
+    get().updateConnections();
+  },
+  updateConnections: () => {
+    const state = get();
+    const connections: Connection[] = [];
+    let connectionId = 0;
+    const allLayers = [state.input_neurons, ...state.layers.map(l => l.neurons), state.output_neurons];
+
+    for (let i = 0; i < allLayers.length - 1; i++) {
+      const startLayer = allLayers[i];
+      const endLayer = allLayers[i + 1];
+      const startOffset = allLayers.slice(0, i).reduce((sum, n) => sum + n, 0);
+      const endOffset = startOffset + startLayer;
+
+      for (let j = 0; j < startLayer; j++) {
+        for (let k = 0; k < endLayer; k++) {
+          const startNeuron = state.visualNeurons[startOffset + j];
+          const endNeuron = state.visualNeurons[endOffset + k];
+          connections.push({
+            id: `connection-${connectionId++}`,
+            startNeuronId: startNeuron.id,
+            endNeuronId: endNeuron.id,
+            strength: endNeuron.activation
+          });
+        }
+      }
+    }
+
+    set({ connections });
   },
 }));
 
