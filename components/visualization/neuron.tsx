@@ -20,8 +20,34 @@ export default function Neuron({ neuron, isRealigning }: { neuron: NeuronVisual;
   const [activationHistory, setActivationHistory] = useState<number[]>([neuron.activation])
   const [timeLabels, setTimeLabels] = useState<string[]>(['0'])
   
+  // Track previous epoch to detect resets
+  const [prevEpoch, setPrevEpoch] = useState(0)
+  
   // Access the global state for real-time updates
   const { curr_epoch, is_training, neurons } = useModelStore();
+  
+  // Reset histories when training starts a new session
+  // We now need to detect when it's a new training session vs. continuing training
+  useEffect(() => {
+    // Only reset when:
+    // 1. Not currently training AND epoch count drops to zero (new training session started)
+    // 2. Was training, and epoch dropped dramatically (new training session started)
+    const isNewTrainingSession = 
+      (!is_training && curr_epoch === 0 && prevEpoch > 0) || 
+      (curr_epoch < prevEpoch && !is_training);
+    
+    if (isNewTrainingSession) {
+      // Reset all histories for a new training session
+      setWeightHistory([neuron.weight]);
+      setBiasHistory([neuron.bias]);
+      setActivationHistory([neuron.activation]);
+      setTimeLabels(['0']);
+      console.log('Reset neuron histories for new training session');
+    }
+    
+    // Update previous epoch
+    setPrevEpoch(curr_epoch);
+  }, [curr_epoch, is_training, neuron.weight, neuron.bias, neuron.activation, prevEpoch]);
   
   // Update histories when the neuron properties change
   useEffect(() => {

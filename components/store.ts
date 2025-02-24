@@ -4,7 +4,7 @@ import { create } from 'zustand';
 import * as tf from "@tensorflow/tfjs";
 import Neuron from './visualization/neuron';
 import { MnistData, NUM_TRAIN_ELEMENTS } from '@/lib/mnist'; // Import MnistData and constants
-import { createAndCompileModel } from '@/lib/model'; // Import
+import { createAndCompileModel, InitializerType } from '@/lib/model'; // Update import
 import { Vector3 } from 'three';
 
 interface ModelActions {
@@ -26,9 +26,10 @@ interface ModelActions {
   loadDataset: (datasetName: 'xor' | 'sine' | 'mnist') => Promise<void>; // New
   setInputShape: (shape: number[]) => void; // New
   setTrainingData: (data: { xs: tf.Tensor; ys: tf.Tensor } | null) => void; // New
-  createModelAndLoadData: (dataset: 'xor' | 'sine' | 'mnist') => Promise<void>; // Add this
+  createModelAndLoadData: (dataset: 'xor' | 'sine' | 'mnist', initializer?: InitializerType) => Promise<void>; // Updated
   updateWeightsAndBiases: (model: tf.LayersModel) => void; // Add this
   rebuildModelFromLayers: () => void;
+  setWeightInitializer: (type: InitializerType) => void; // New
 }
 
 interface ModelInfo {
@@ -48,6 +49,7 @@ interface ModelInfo {
   neurons: Neuron[];
   selectedDataset: 'xor' | 'sine' | 'mnist' | null; // New
   trainingData: { xs: tf.Tensor; ys: tf.Tensor } | null; // New
+  weightInitializer: InitializerType; // New
 }
 
 export interface Neuron {
@@ -106,6 +108,11 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   trainingData: null, // Initial training data
   visualNeurons: [],
   connections: [],
+  weightInitializer: 'glorot_uniform', // Default initializer
+
+  // Add setter for weight initializer
+  setWeightInitializer: (type: InitializerType) => set({ weightInitializer: type }),
+
   setModel: (model: tf.LayersModel | null) => set({ model }),
   setNumNeurons: (num: number) => set({ num_neurons: num }),
   setNumLayers: (num: number) => set({ num_layers: num }),
@@ -224,7 +231,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   },
   setInputShape: (shape: number[]) => set({ inputShape: shape }), // New
   setTrainingData: (data: { xs: tf.Tensor; ys: tf.Tensor } | null) => set({ trainingData: data }), // New
-  createModelAndLoadData: async (dataset) => {
+  createModelAndLoadData: async (dataset, initializer) => {
     // Load the dataset first
     await get().loadDataset(dataset);
     
@@ -232,6 +239,9 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     const state = get();
     let inputNeurons = state.input_neurons;
     let outputNeurons = state.output_neurons;
+    
+    // Use provided initializer or the one from state
+    const weightInitializer = initializer || state.weightInitializer;
     
     // Configure network structure based on dataset
     switch (dataset) {
@@ -274,8 +284,8 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     const currentModel = state.model;
     if (currentModel) currentModel.dispose();
     
-    // Create the new model with the updated configuration
-    const newModel = createAndCompileModel(state.inputShape);
+    // Create the new model with the updated configuration and specified initializer
+    const newModel = createAndCompileModel(state.inputShape, weightInitializer);
     
     // Update state with the new model
     set({
@@ -369,7 +379,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
             neuron.weights = weightMatrix[neuronIndexInLayer];
             
             // Log for debugging
-            console.log(`Updated neuron ${neuron.id} in layer ${layerIndex}`);
+            console.log(`Updated model neuron ${neuron.id} in layer ${layerIndex}`);
             console.log(`  Bias: ${neuron.bias}`);
             console.log(`  Weights: ${neuron.weights.slice(0, 3)}... (${neuron.weights.length} total)`);
           }
@@ -382,10 +392,14 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     
     // Now update the visual neurons to reflect the changes
     const updatedVisualNeurons = [...state.visualNeurons].map(visualNeuron => {
-      // Find corresponding model neuron if it exists
+      // Get the neuron ID parts to find the corresponding model neuron
+      const [type, layerStr, indexStr] = visualNeuron.id.split('-');
+      const layer = parseInt(layerStr);
+      
+      // Find corresponding model neuron by ID
       const modelNeuron = updatedNeurons.find(n => 
-        n.layer === visualNeuron.layer && 
-        n.id.includes(visualNeuron.id.split('-')[2]) // Match by index in layer
+        n.layer === layer && 
+        n.id === `neuron-${layer}-${indexStr}`
       );
       
       if (modelNeuron) {
@@ -415,14 +429,22 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     
     const totalLayers = state.num_layers + 2; // input + hidden layers + output
     
+    // Debug log of model neurons to help find the issue
+    console.log("Model neurons:", state.neurons.map(n => ({ id: n.id, layer: n.layer })));
+    
     // Create input neurons
     for (let i = 0; i < state.input_neurons; i++) {
+      // Find the corresponding model neuron
+      const modelNeuron = state.neurons.find(n => n.layer === 0 && n.id === `neuron-0-${i}`);
+      
       visualNeurons.push({
         id: `input-0-${i}`,
         position: new Vector3(0, 0, 0), // Will be updated by recalculatePositions
         activation: 0.5, // Default activation
-        weight: 1,
-        bias: 0,
+        weight: modelNeuron?.weights.length ? 
+          modelNeuron.weights.reduce((sum, w) => sum + w, 0) / modelNeuron.weights.length : 
+          0, // Use actual weights average if available
+        bias: modelNeuron?.bias || 0,
         activationFunction: 'relu',
         layer: 0,
         type: 'input'
@@ -432,12 +454,17 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     // Create hidden neurons
     state.layers.forEach((layer, layerIndex) => {
       for (let i = 0; i < layer.neurons; i++) {
+        // Find the corresponding model neuron
+        const modelNeuron = state.neurons.find(n => n.layer === layerIndex + 1 && n.id === `neuron-${layerIndex + 1}-${i}`);
+        
         visualNeurons.push({
           id: `hidden-${layerIndex + 1}-${i}`,
           position: new Vector3(0, 0, 0), // Will be updated by recalculatePositions
           activation: 0.5, // Default activation
-          weight: 1,
-          bias: state.neurons.find(n => n.layer === layerIndex + 1)?.bias || 0,
+          weight: modelNeuron?.weights.length ? 
+            modelNeuron.weights.reduce((sum, w) => sum + w, 0) / modelNeuron.weights.length : 
+            0, // Use actual weights average if available
+          bias: modelNeuron?.bias || 0,
           activationFunction: 'relu',
           layer: layerIndex + 1,
           type: 'hidden'
@@ -447,14 +474,20 @@ export const useModelStore = create<ModelStore>((set, get) => ({
 
     // Create output neurons
     for (let i = 0; i < state.output_neurons; i++) {
+      // Find the corresponding model neuron
+      const layerIndex = totalLayers - 1;
+      const modelNeuron = state.neurons.find(n => n.layer === layerIndex && n.id === `neuron-${layerIndex}-${i}`);
+      
       visualNeurons.push({
-        id: `output-${totalLayers - 1}-${i}`,
+        id: `output-${layerIndex}-${i}`,
         position: new Vector3(0, 0, 0), // Will be updated by recalculatePositions
         activation: 0.5, // Default activation
-        weight: 1,
-        bias: state.neurons.find(n => n.layer === totalLayers - 1)?.bias || 0,
+        weight: modelNeuron?.weights.length ? 
+          modelNeuron.weights.reduce((sum, w) => sum + w, 0) / modelNeuron.weights.length : 
+          0, // Use actual weights average if available
+        bias: modelNeuron?.bias || 0,
         activationFunction: 'sigmoid',
-        layer: totalLayers - 1,
+        layer: layerIndex,
         type: 'output'
       });
     }
@@ -507,11 +540,18 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       
       // For each neuron in the next layer, create connections from previous layer
       nextLayerNeurons.forEach(endNeuron => {
+        // Get the neuron ID parts to find the corresponding model neuron
+        const [endType, endLayer, endIndex] = endNeuron.id.split('-');
+        
         // Find the model neuron that corresponds to this visual neuron
         const modelNeuron = neurons.find(n => 
-          n.layer === endNeuron.layer && 
-          (n.id.includes(endNeuron.layer.toString()) && n.id.includes(endNeuron.id.split('-')[2]))
+          n.layer === parseInt(endLayer) && 
+          n.id === `neuron-${endLayer}-${endIndex}`
         );
+        
+        if (!modelNeuron) {
+          console.warn(`Could not find model neuron for visual neuron ${endNeuron.id}`);
+        }
         
         // Connect to each neuron in the previous layer
         thisLayerNeurons.forEach((startNeuron, startIndex) => {
@@ -529,9 +569,11 @@ export const useModelStore = create<ModelStore>((set, get) => ({
             connectionStrength = 1 / (1 + Math.exp(-3 * weight)); // Multiply by 3 to increase contrast
             
             // Debug logging for some connections
-            if (startIndex === 0 && endNeuron.layer === 1) {
+            if (startIndex === 0 && parseInt(endLayer) === 1) {
               console.log(`Connection weight: layer ${layerIndex} → ${layerIndex+1}, raw: ${weight.toFixed(4)}, visual: ${connectionStrength.toFixed(4)}`);
             }
+          } else if (modelNeuron) {
+            console.warn(`Model neuron ${modelNeuron.id} doesn't have enough weights for neuron at index ${startIndex}`);
           }
           
           // Create the connection
@@ -564,8 +606,8 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       state.model.dispose();
     }
     
-    // Create new model with current layer configuration
-    const newModel = createAndCompileModel(state.inputShape);
+    // Create new model with current layer configuration and weight initializer
+    const newModel = createAndCompileModel(state.inputShape, state.weightInitializer);
     
     // Update state with new model
     set({

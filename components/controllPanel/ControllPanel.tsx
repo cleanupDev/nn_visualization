@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "../ui/slider";
+import { InitializerType } from "@/lib/model";
 
 const ControlPanel = () => {
   const {
@@ -29,12 +30,18 @@ const ControlPanel = () => {
     trainingData,
     selectedDataset,
     createModelAndLoadData,
-    updateWeightsAndBiases
+    updateWeightsAndBiases,
+    weightInitializer,
+    setWeightInitializer,
+    rebuildModelFromLayers
   } = useModelStore();
 
   const [isStylesLoaded, setIsStylesLoaded] = useState(false);
   const [animationSpeed, setAnimationSpeed] = useState(30); // Default animation speed
   const [animationInterval, setAnimationInterval] = useState<NodeJS.Timeout | null>(null);
+  const [numEpochs, setNumEpochs] = useState(50); // Default number of epochs
+  // Track total epochs across multiple training sessions
+  const [totalEpochs, setTotalEpochs] = useState(0);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsStylesLoaded(true), 50);
@@ -57,13 +64,43 @@ const ControlPanel = () => {
     };
   }, [animationInterval]);
 
+  // Update total epochs tracker when current epoch changes
+  useEffect(() => {
+    if (curr_epoch > 0) {
+      setTotalEpochs(curr_epoch);
+    }
+  }, [curr_epoch]);
+
+  // Reset total epochs when dataset changes
+  useEffect(() => {
+    setTotalEpochs(0);
+  }, [selectedDataset]);
+
   const handleDatasetChange = (value: string) => {
     createModelAndLoadData(value as 'xor' | 'sine' | 'mnist');
   };
 
-  const startTraining = async () => {
+  const handleInitializerChange = (value: string) => {
+    setWeightInitializer(value as InitializerType);
+    // Rebuild the model with the new initializer if there's already a model
+    if (model) {
+      rebuildModelFromLayers();
+    }
+  };
+
+  const manualForwardPass = async () => {
+    if (!model) return;
+  };
+
+  const startTraining = async (continueTraining: boolean = false) => {
     if (!model || !trainingData) return;
     setIsTraining(true);
+    
+    // Reset epoch counter only if not continuing from previous training
+    if (!continueTraining) {
+      setCurrEpoch(0);
+      setTotalEpochs(0);
+    }
 
     try {
       // Set up animation interval for smoother visual updates
@@ -80,19 +117,31 @@ const ControlPanel = () => {
       }, 1000 / animationSpeed); // Update visuals X times per second
       
       setAnimationInterval(intervalId);
+      
+      // Get start epoch based on continuation mode
+      const startEpoch = continueTraining ? totalEpochs : 0;
+      const epochsToTrain = numEpochs;
+      
+      console.log(`Training from epoch ${startEpoch} for ${epochsToTrain} epochs`);
     
       const history = await model.fit(trainingData.xs, trainingData.ys, {
-        epochs: 50,
+        epochs: epochsToTrain,
         batchSize: 32,
         callbacks: {
+          onEpochBegin: async (epoch: number) => {
+            // Update epoch counter with offset for continuation
+            const currentEpoch = startEpoch + epoch;
+            setCurrEpoch(currentEpoch + 1); // +1 because epoch is 0-indexed in the callback
+          },
           onEpochEnd: async (epoch: number, logs: any) => {
+            const currentEpoch = startEpoch + epoch;
             console.log(
-              `Epoch ${epoch + 1}: Loss = ${logs.loss}, Accuracy = ${logs.acc || 'N/A'}`
+              `Epoch ${currentEpoch + 1}: Loss = ${logs.loss}, Accuracy = ${logs.acc || 'N/A'}`
             );
             // Update state with the latest accuracy and loss after each epoch
             setCurrAcc(logs.acc || 0);
             setCurrLoss(logs.loss || 0);
-            setCurrEpoch(curr_epoch + epoch + 1);
+            // Epoch counter already updated in onEpochBegin
             // Weights will be updated by the animation interval
           },
         },
@@ -106,6 +155,9 @@ const ControlPanel = () => {
       
       setIsTraining(false);
       setCurrPhase("trained");
+      
+      // Update total epochs tracker
+      setTotalEpochs(startEpoch + epochsToTrain);
       
       // Final update of weights and connections
       updateWeightsAndBiases(model);
@@ -121,10 +173,6 @@ const ControlPanel = () => {
       setIsTraining(false);
       setCurrPhase("error");
     }
-  };
-
-  const manualForwardPass = async () => {
-    if (!model) return;
   };
 
   return (
@@ -149,6 +197,41 @@ const ControlPanel = () => {
       
       <div className="mb-4">
         <label className="block text-sm font-medium text-gray-200 mb-1">
+          Weight Initialization
+        </label>
+        <Select onValueChange={handleInitializerChange} defaultValue={weightInitializer}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select initializer" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="glorot_uniform">Glorot Uniform (Default)</SelectItem>
+            <SelectItem value="he_normal">He Normal</SelectItem>
+            <SelectItem value="random_normal">Random Normal</SelectItem>
+            <SelectItem value="zeros">Zeros</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-200 mb-1">
+          Number of Epochs
+        </label>
+        <div className="flex items-center gap-2">
+          <Slider
+            value={[numEpochs]}
+            min={10}
+            max={1000}
+            step={10}
+            onValueChange={(values: number[]) => setNumEpochs(values[0])}
+            disabled={is_training}
+            className="flex-grow"
+          />
+          <span className="ml-2 text-xs text-gray-300 min-w-[40px] text-right">{numEpochs}</span>
+        </div>
+      </div>
+      
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-200 mb-1">
           Animation Speed
         </label>
         <div className="flex items-center gap-2">
@@ -168,19 +251,28 @@ const ControlPanel = () => {
       </div>
       
       <div className="space-y-4">
-        <div className="flex space-x-2">
+        <div className="grid grid-cols-2 gap-2">
           <Button
-            onClick={startTraining}
+            onClick={() => startTraining(false)}
             disabled={is_training || !model}
-            className="flex-1"
+            className="w-full"
             variant="default"
           >
-            {is_training ? "Training..." : "Start Training"}
+            {is_training ? "Training..." : "New Training"}
+          </Button>
+          
+          <Button
+            onClick={() => startTraining(true)}
+            disabled={is_training || !model || totalEpochs === 0}
+            className="w-full"
+            variant="secondary"
+          >
+            Continue Training
           </Button>
         </div>
         
         <div className="grid grid-cols-2 gap-2 text-sm text-white">
-          <div>Epochs: {curr_epoch}</div>
+          <div>Epochs: {curr_epoch} / {totalEpochs + numEpochs}</div>
           <div>Loss: {typeof curr_loss === 'number' ? curr_loss.toFixed(4) : curr_loss}</div>
           <div>Accuracy: {typeof curr_acc === 'number' ? (curr_acc * 100).toFixed(2) + '%' : curr_acc}</div>
           <div>Status: {is_training ? "Training" : curr_phase}</div>

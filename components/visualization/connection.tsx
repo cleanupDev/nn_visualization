@@ -11,6 +11,24 @@ export default function Connection({ connection, neurons }: { connection: Connec
   const [strengthHistory, setStrengthHistory] = useState<number[]>([connection.strength])
   const { is_training, curr_epoch } = useModelStore()
   
+  // Track previous epoch to detect new training sessions
+  const [prevEpoch, setPrevEpoch] = useState(0)
+  
+  // Reset strength history on new training sessions
+  useEffect(() => {
+    // Detect new training session (epoch goes down or resets to 0)
+    const isNewTrainingSession = 
+      (!is_training && curr_epoch === 0 && prevEpoch > 0) || 
+      (curr_epoch < prevEpoch && !is_training);
+    
+    if (isNewTrainingSession) {
+      setStrengthHistory([connection.strength]);
+    }
+    
+    // Update previous epoch
+    setPrevEpoch(curr_epoch);
+  }, [curr_epoch, is_training, connection.strength, prevEpoch]);
+  
   // Update strength history when connection strength changes
   useEffect(() => {
     // Only record during training
