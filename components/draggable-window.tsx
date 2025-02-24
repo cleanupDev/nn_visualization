@@ -172,14 +172,14 @@ export function DraggableWindowComponent({
           onWheel={handleWheel}
         >
           {children}
-          {latexContent && (
-            <div className="mt-4">
-              <Latex>{latexContent}</Latex>
-            </div>
-          )}
           {graphData && (
             <div className="mt-4" style={{ height: '200px' }}>
               <Line options={customGraphOptions || graphOptions} data={graphData} />
+            </div>
+          )}
+          {latexContent && (
+            <div className="mt-4 p-3 bg-gray-900 rounded border border-gray-700 latex-container">
+              <Latex>{latexContent}</Latex>
             </div>
           )}
         </div>

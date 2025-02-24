@@ -175,6 +175,68 @@ export default function Neuron({ neuron, isRealigning }: { neuron: NeuronVisual;
     return `${typeDisplay} Neuron - Layer ${neuron.layer}`;
   };
 
+  // Generate LaTeX formula for the neuron
+  const getNeuronFormula = () => {
+    const connectedNeurons = getConnectedNeurons();
+    const inputConnections = connectedNeurons.filter(conn => conn.direction === 'input');
+    
+    // If no input connections or not a hidden/output neuron, return empty string
+    if (inputConnections.length === 0 || neuron.type === 'input') {
+      return '';
+    }
+    
+    // Create the formula based on activation function
+    let activationFuncDisplay = '';
+    let activationFuncLatex = '';
+    switch (neuron.activationFunction) {
+      case 'sigmoid':
+        activationFuncDisplay = '\\sigma';
+        activationFuncLatex = '\\sigma(z) = \\frac{1}{1 + e^{-z}}';
+        break;
+      case 'relu':
+        activationFuncDisplay = '\\text{ReLU}';
+        activationFuncLatex = '\\text{ReLU}(z) = \\max(0, z)';
+        break;
+      case 'tanh':
+        activationFuncDisplay = '\\tanh';
+        activationFuncLatex = '\\tanh(z) = \\frac{e^z - e^{-z}}{e^z + e^{-z}}';
+        break;
+      default:
+        activationFuncDisplay = neuron.activationFunction;
+        activationFuncLatex = '\\text{activation}(z)';
+    }
+    
+    // Build the weighted sum formula
+    const weightedSumTerms = inputConnections.map((conn, idx) => {
+      const weight = conn.rawWeight.toFixed(4);
+      const prefix = parseFloat(weight) >= 0 ? '+' : ''; // Add + for positive values except first term
+      
+      // Get a clean neuron ID for display
+      const neuronShortId = conn.id.split('-').slice(-2).join('-');
+      
+      return `${idx === 0 ? weight : prefix + weight} \\cdot x_{${neuronShortId}}`;
+    });
+    
+    // Add bias term
+    const biasValue = neuron.bias.toFixed(4);
+    const biasWithSign = neuron.bias >= 0 ? `+ ${biasValue}` : `${biasValue}`;
+    
+    // Final formula - use a simpler format with separate math blocks
+    return `
+Neuron Formula:
+
+$a = ${activationFuncDisplay}(z)$
+
+$z = ${weightedSumTerms.join(' ')} ${biasWithSign}$
+
+Where:
+
+$${activationFuncLatex}$
+
+$a = \\text{neuron output}$
+    `;
+  };
+
   // Configure the Chart.js options
   const options = {
     responsive: true,
@@ -281,6 +343,7 @@ export default function Neuron({ neuron, isRealigning }: { neuron: NeuronVisual;
           graphData={graphData}
           graphTitle="Neuron Properties Over Time"
           customGraphOptions={options}
+          latexContent={getNeuronFormula()}
           initialPosition={{ x: 100, y: 0 }}
         >
           <div className="neuron-info">
