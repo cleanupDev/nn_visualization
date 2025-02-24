@@ -52,15 +52,11 @@ export default function Neuron({ neuron, isRealigning }: { neuron: NeuronVisual;
 
   // Get color based on neuron type
   const neuronColor = useMemo(() => {
-    switch(neuron.type) {
-      case 'input': return new Color('#1971c2'); // Blue
-      case 'hidden': return new Color('#2f9e44'); // Green
-      case 'output': return new Color('#e03131'); // Red
-      default: return new Color('#1971c2');
-    }
+    // Using a more vibrant professional blue for all neuron types
+    return new Color(0.1, 0.4, 0.9); // #1a66e6 - vibrant blue
   }, [neuron.type]);
   
-  const hoverColor = useMemo(() => neuronColor.clone().lerp(new Color(1, 1, 1), 0.3), [neuronColor])
+  const hoverColor = useMemo(() => neuronColor.clone().lerp(new Color(0.6, 0.8, 1), 0.5), [neuronColor])
 
   const onPointerDown = useCallback((event: ThreeEvent<PointerEvent>) => {
     event.stopPropagation()
@@ -124,22 +120,22 @@ export default function Neuron({ neuron, isRealigning }: { neuron: NeuronVisual;
         {
           label: 'Weight',
           data: weightHistory,
-          borderColor: '#2f9e44', // Green
-          backgroundColor: 'rgba(47, 158, 68, 0.1)',
+          borderColor: '#00cc33', // Vibrant deep green - matches positive connections
+          backgroundColor: 'rgba(0, 204, 51, 0.15)',
           tension: 0.2,
         },
         {
           label: 'Bias',
           data: biasHistory,
-          borderColor: '#1971c2', // Blue
-          backgroundColor: 'rgba(25, 113, 194, 0.1)',
+          borderColor: '#ff0000', // Vibrant deep red - matches negative connections
+          backgroundColor: 'rgba(255, 0, 0, 0.15)',
           tension: 0.2,
         },
         {
           label: 'Activation',
           data: activationHistory,
-          borderColor: '#e03131', // Red
-          backgroundColor: 'rgba(224, 49, 49, 0.1)',
+          borderColor: '#1a66e6', // Vibrant blue - matches neurons
+          backgroundColor: 'rgba(26, 102, 230, 0.15)',
           tension: 0.2,
         },
       ],
@@ -315,9 +311,9 @@ $a = \\text{neuron output}$
   };
 
   const getValueColorClass = (value: number) => {
-    if (value > 0) return 'text-green-500';
-    if (value < 0) return 'text-red-500';
-    return 'text-gray-500';
+    if (value > 0) return 'text-green-500'; // Brighter green for positive
+    if (value < 0) return 'text-red-500'; // Brighter red for negative
+    return 'text-gray-400';
   };
 
   return (
@@ -347,7 +343,7 @@ $a = \\text{neuron output}$
           initialPosition={{ x: 100, y: 0 }}
         >
           <div className="neuron-info">
-            <h2 className="text-xl font-bold mb-4 text-blue-400">Neuron Information</h2>
+            <h2 className="text-xl font-bold mb-4 text-blue-500">Neuron Information</h2>
             
             <div className="grid grid-cols-2 gap-2 mb-4">
               <div className="font-semibold">ID:</div>
@@ -372,7 +368,7 @@ $a = \\text{neuron output}$
               <div>{neuron.activationFunction}</div>
             </div>
             
-            <h3 className="text-lg font-bold mb-2 text-blue-400">Connected Neurons</h3>
+            <h3 className="text-lg font-bold mb-2 text-blue-500">Connected Neurons</h3>
             <div className="max-h-40 overflow-y-auto mb-4">
               <table className="w-full text-sm">
                 <thead>
@@ -392,11 +388,11 @@ $a = \\text{neuron output}$
                       <td className="px-2 py-1">
                         <span 
                           className={`px-1 rounded ${
-                            conn.strength > 0.7 ? 'bg-green-900' :
-                            conn.strength > 0.5 ? 'bg-green-800' :
-                            conn.strength < 0.3 ? 'bg-red-900' :
-                            conn.strength < 0.5 ? 'bg-red-800' :
-                            'bg-gray-700'
+                            conn.strength > 0.7 ? 'bg-green-600' :
+                            conn.strength > 0.55 ? 'bg-green-500' :
+                            conn.strength < 0.3 ? 'bg-red-600' :
+                            conn.strength < 0.45 ? 'bg-red-500' :
+                            'bg-blue-100 text-gray-800'
                           }`}
                         >
                           {conn.rawWeight.toFixed(4)}

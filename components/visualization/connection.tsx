@@ -46,36 +46,35 @@ export default function Connection({ connection, neurons }: { connection: Connec
     }
   }, [connection.strength, connection.id, is_training]);
 
-  // Map the connection strength to a color with enhanced contrast and saturation
-  // 0.0-0.3: Strong negative (bright red)
-  // 0.3-0.48: Weak negative (vibrant pink/red)
-  // 0.48-0.52: Neutral (bright silver)
-  // 0.52-0.7: Weak positive (bright teal)
-  // 0.7-1.0: Strong positive (vivid green)
+  // Map the connection strength to a color using a vibrant red-green gradient
+  // 0.0-0.3: Strong negative (vibrant deep red)
+  // 0.3-0.45: Weak negative (vibrant light red)
+  // 0.45-0.55: Neutral (light gray with slight blue tint)
+  // 0.55-0.7: Weak positive (vibrant light green)
+  // 0.7-1.0: Strong positive (vibrant deep green)
   const color = useMemo(() => {
     if (connection.strength > 0.7) {
-      // Strong positive - vivid green
-      return new Color(0, 1, 0.2); // More saturated green
-    } else if (connection.strength > 0.52) {
-      // Weak positive - bright teal
-      return new Color(0, 0.9, 0.6); // More distinctive from strong positive
-    } else if (connection.strength >= 0.48) {
-      // Neutral - bright silver
-      return new Color(0.8, 0.8, 0.9); // Brighter, slightly blue-tinted
+      // Strong positive - vibrant deep green
+      return new Color(0.0, 0.8, 0.2); // #00cc33 - vibrant deep green
+    } else if (connection.strength > 0.55) {
+      // Weak positive - vibrant light green
+      return new Color(0.4, 0.9, 0.4); // #66e666 - vibrant light green
+    } else if (connection.strength >= 0.45) {
+      // Neutral - light blue-gray 
+      return new Color(0.8, 0.85, 0.9); // #ccd9e6 - light blue-gray
     } else if (connection.strength >= 0.3) {
-      // Weak negative - vibrant pink/red
-      return new Color(1, 0.4, 0.6); // More vivid and distinctive
+      // Weak negative - vibrant light red
+      return new Color(1.0, 0.4, 0.4); // #ff6666 - vibrant light red
     } else {
-      // Strong negative - bright red
-      return new Color(1, 0.1, 0.1); // More saturated red
+      // Strong negative - vibrant deep red
+      return new Color(1.0, 0.0, 0.0); // #ff0000 - vibrant deep red
     }
   }, [connection.strength])
 
-  // Scale line width based on connection strength with increased base thickness
-  // Further from 0.5 (neutral) = thicker line
+  // Scale line width based on connection strength with more noticeable differences
   const lineWidth = useMemo(() => {
     const strengthDiff = Math.abs(connection.strength - 0.5) * 2; // Map to 0-1
-    return 1.5 + strengthDiff * 6; // Thicker base width (1.5) + up to 6x for strong connections
+    return 1.5 + strengthDiff * 5; // Thicker base width (1.5) + up to 5x for strong connections
   }, [connection.strength]);
 
   if (!startNeuron || !endNeuron) {
