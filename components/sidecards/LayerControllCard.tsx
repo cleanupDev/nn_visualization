@@ -21,7 +21,7 @@ const LayerControlCard = () => {
     setLayers,
     setNumLayers,
     setNumNeurons,
-    resetModelData,
+    rebuildModelFromLayers,
   } = useModelStore();
 
   const updateStore = (newLayers: { name: string; neurons: number }[]) => {
@@ -29,9 +29,12 @@ const LayerControlCard = () => {
     setNumLayers(newLayers.length);
     const totalNeurons = newLayers.reduce(
       (acc, layer) => acc + layer.neurons,
-      1
+      0
     );
-    setNumNeurons(2 +totalNeurons);
+    setNumNeurons(totalNeurons);
+    
+    // Rebuild the model with the new layer configuration
+    rebuildModelFromLayers();
   };
 
   const handleAddLayer = () => {
@@ -41,14 +44,12 @@ const LayerControlCard = () => {
         { name: `Layer ${layers.length + 1}`, neurons: 1 },
       ];
       updateStore(newLayers);
-      resetModelData();
     }
   };
 
   const handleDeleteLayer = () => {
     const newLayers = layers.slice(0, layers.length - 1);
     updateStore(newLayers);
-    resetModelData();
   };
 
   const handleAddNeuron = (index: number) => {
@@ -57,7 +58,6 @@ const LayerControlCard = () => {
       idx === index ? { ...layer, neurons: layer.neurons + 1 } : layer
     );
     updateStore(newLayers);
-    resetModelData();
   };
 
   const handleDeleteNeuron = (index: number) => {
@@ -67,7 +67,6 @@ const LayerControlCard = () => {
         : layer
     );
     updateStore(newLayers);
-    resetModelData();
   };
 
   return (

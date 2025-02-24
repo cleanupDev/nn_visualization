@@ -30,6 +30,7 @@ ChartJS.register(
 interface DraggableWindowProps {
   children: React.ReactNode
   onClose: () => void
+  title?: string
   latexContent?: string
   graphData?: {
     labels: string[]
@@ -40,11 +41,21 @@ interface DraggableWindowProps {
       backgroundColor: string
     }[]
   }
+  graphTitle?: string
+  initialPosition?: { x: number, y: number }
 }
 
-export function DraggableWindowComponent({ children, onClose, latexContent, graphData }: DraggableWindowProps) {
+export function DraggableWindowComponent({ 
+  children, 
+  onClose, 
+  title = "Resizable Draggable Window",
+  latexContent, 
+  graphData,
+  graphTitle = "Data Over Time",
+  initialPosition = { x: 0, y: 0 }
+}: DraggableWindowProps) {
   const [isDragging, setIsDragging] = useState(false)
-  const [position, setPosition] = useState({ x: 0, y: 0 })
+  const [position, setPosition] = useState(initialPosition)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const [size, setSize] = useState({ width: 384, height: 300 })
   const contentRef = useRef<HTMLDivElement>(null)
@@ -83,23 +94,30 @@ export function DraggableWindowComponent({ children, onClose, latexContent, grap
   const graphOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    animation: {
+      duration: 300 // Faster animations for real-time updates
+    },
     plugins: {
       legend: {
         position: 'top' as const,
+        labels: {
+          color: '#e0e0e0'
+        }
       },
       title: {
         display: true,
-        text: 'Sample Graph',
+        text: graphTitle,
+        color: '#e0e0e0'
       },
     },
     scales: {
       x: {
-        ticks: { color: '#1e1e1e' },
-        grid: { color: '#1e1e1e' },
+        ticks: { color: '#e0e0e0' },
+        grid: { color: 'rgba(255, 255, 255, 0.1)' },
       },
       y: {
-        ticks: { color: '#1e1e1e' },
-        grid: { color: '#1e1e1e' },
+        ticks: { color: '#e0e0e0' },
+        grid: { color: 'rgba(255, 255, 255, 0.1)' },
       },
     },
   }
@@ -111,7 +129,7 @@ export function DraggableWindowComponent({ children, onClose, latexContent, grap
       width={size.width}
       height={size.height}
       onResize={handleResize}
-      minConstraints={[200, 200]}
+      minConstraints={[250, 250]}
       maxConstraints={[800, 600]}
     >
       <div
@@ -129,6 +147,7 @@ export function DraggableWindowComponent({ children, onClose, latexContent, grap
           color: '#e0e0e0',
           display: 'flex',
           flexDirection: 'column',
+          zIndex: 1000,
         }}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -138,7 +157,7 @@ export function DraggableWindowComponent({ children, onClose, latexContent, grap
           className="bg-[#1971c2] p-2 rounded-t-lg flex justify-between items-center cursor-move"
           onMouseDown={handleHeaderMouseDown}
         >
-          <span className="font-bold text-[#121212]">Resizable Draggable Window</span>
+          <span className="font-bold text-[#121212]">{title}</span>
           <button onClick={onClose} className="text-[#121212] hover:text-[#e03131]">
             ×
           </button>

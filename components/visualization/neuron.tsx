@@ -1,8 +1,8 @@
-import React, { useMemo, useRef, useState, useCallback } from 'react'
+import React, { useMemo, useRef, useState, useCallback, useEffect } from 'react'
 import { useThree, useFrame, ThreeEvent } from '@react-three/fiber'
 import { Color, Vector3, Plane, Mesh } from 'three'
 import { useSpring, animated } from '@react-spring/three'
-import { NeuronVisual } from '../store'
+import { NeuronVisual, useModelStore } from '../store'
 import { OrbitControls, Html } from '@react-three/drei'
 import { DraggableWindowComponent } from '../draggable-window'
 
@@ -13,13 +13,61 @@ export default function Neuron({ neuron, isRealigning }: { neuron: NeuronVisual;
   const [isHovered, setIsHovered] = useState(false)
   const dragPlane = useMemo(() => new Plane(new Vector3(0, 0, 1), 0), [])
   const [showWindow, setShowWindow] = useState(false)
+  
+  // Track neuron data over time for graphing
+  const [weightHistory, setWeightHistory] = useState<number[]>([neuron.weight])
+  const [biasHistory, setBiasHistory] = useState<number[]>([neuron.bias])
+  const [activationHistory, setActivationHistory] = useState<number[]>([neuron.activation])
+  const [timeLabels, setTimeLabels] = useState<string[]>(['0'])
+  
+  // Access the global state for real-time updates
+  const { curr_epoch, is_training, neurons } = useModelStore();
+  
+  // Update histories when the neuron properties change
+  useEffect(() => {
+    if (is_training) {
+      // Track weight changes
+      setWeightHistory(prev => {
+        const newHistory = [...prev, neuron.weight];
+        // Keep only the last 20 values for better visualization
+        return newHistory.slice(-20);
+      });
+      
+      // Track bias changes
+      setBiasHistory(prev => {
+        const newHistory = [...prev, neuron.bias];
+        return newHistory.slice(-20);
+      });
+      
+      // Track activation changes
+      setActivationHistory(prev => {
+        const newHistory = [...prev, neuron.activation];
+        return newHistory.slice(-20);
+      });
+      
+      // Update time labels
+      setTimeLabels(prev => {
+        const newLabels = [...prev, curr_epoch.toString()];
+        return newLabels.slice(-20);
+      });
+    }
+  }, [neuron.weight, neuron.bias, neuron.activation, curr_epoch, is_training]);
 
   const { animatedPosition } = useSpring({
     animatedPosition: isRealigning ? [neuron.position.x, neuron.position.y, neuron.position.z] : [neuron.position.x, neuron.position.y, neuron.position.z],
     config: { mass: 1, tension: 180, friction: 12 }
   })
 
-  const neuronColor = useMemo(() => new Color('#1971c2'), [])
+  // Get color based on neuron type
+  const neuronColor = useMemo(() => {
+    switch(neuron.type) {
+      case 'input': return new Color('#1971c2'); // Blue
+      case 'hidden': return new Color('#2f9e44'); // Green
+      case 'output': return new Color('#e03131'); // Red
+      default: return new Color('#1971c2');
+    }
+  }, [neuron.type]);
+  
   const hoverColor = useMemo(() => neuronColor.clone().lerp(new Color(1, 1, 1), 0.3), [neuronColor])
 
   const onPointerDown = useCallback((event: ThreeEvent<PointerEvent>) => {
@@ -50,9 +98,9 @@ export default function Neuron({ neuron, isRealigning }: { neuron: NeuronVisual;
   }, [])
 
   const onClick = useCallback(() => {
-    console.log('Neuron clicked')
+    console.log('Neuron clicked:', neuron.id);
     setShowWindow(true)
-  }, [])
+  }, [neuron.id])
 
   useFrame(() => {
     if (meshRef.current) {
@@ -61,26 +109,61 @@ export default function Neuron({ neuron, isRealigning }: { neuron: NeuronVisual;
     }
   })
 
-  // TODO: replace example content for the draggable window
-  const latexContent = 'When $a \\ne 0$, there are two solutions to $ax^2 + bx + c = 0$ and they are $$x = {-b \\pm \\sqrt{b^2-4ac} \\over 2a}$$'
-
-  const graphData = {
-    labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
+  // Get the graph data from the history
+  const graphData = useMemo(() => ({
+    labels: timeLabels,
     datasets: [
       {
-        label: 'Dataset 1',
-        data: [65, 59, 80, 81, 56, 55, 40],
-        borderColor: '#2f9e44',
-        backgroundColor: 'rgba(47, 158, 68, 0.5)',
+        label: 'Weight',
+        data: weightHistory,
+        borderColor: '#2f9e44', // Green
+        backgroundColor: 'rgba(47, 158, 68, 0.1)',
+        tension: 0.2,
       },
       {
-        label: 'Dataset 2',
-        data: [28, 48, 40, 19, 86, 27, 90],
-        borderColor: '#e03131',
-        backgroundColor: 'rgba(224, 49, 49, 0.5)',
+        label: 'Bias',
+        data: biasHistory,
+        borderColor: '#1971c2', // Blue
+        backgroundColor: 'rgba(25, 113, 194, 0.1)',
+        tension: 0.2,
+      },
+      {
+        label: 'Activation',
+        data: activationHistory,
+        borderColor: '#e03131', // Red
+        backgroundColor: 'rgba(224, 49, 49, 0.1)',
+        tension: 0.2,
       },
     ],
-  }
+  }), [timeLabels, weightHistory, biasHistory, activationHistory]);
+
+  // Prepare connected neurons information
+  const getConnectedNeurons = () => {
+    const modelStore = useModelStore.getState();
+    const connections = modelStore.connections.filter(
+      c => c.startNeuronId === neuron.id || c.endNeuronId === neuron.id
+    );
+    
+    return connections.map(conn => {
+      const isOutput = conn.startNeuronId === neuron.id;
+      const otherNeuronId = isOutput ? conn.endNeuronId : conn.startNeuronId;
+      const otherNeuron = modelStore.visualNeurons.find(n => n.id === otherNeuronId);
+      
+      return {
+        id: otherNeuronId,
+        type: otherNeuron?.type || 'unknown',
+        layer: otherNeuron?.layer || 0,
+        strength: conn.strength,
+        direction: isOutput ? 'output' : 'input'
+      };
+    });
+  };
+
+  // Format neuron title for the window
+  const getNeuronTitle = () => {
+    const typeDisplay = neuron.type.charAt(0).toUpperCase() + neuron.type.slice(1);
+    return `${typeDisplay} Neuron - Layer ${neuron.layer}`;
+  };
 
   return (
     <>
@@ -101,21 +184,73 @@ export default function Neuron({ neuron, isRealigning }: { neuron: NeuronVisual;
       <Html center>
         <DraggableWindowComponent
           onClose={() => setShowWindow(false)}
-          latexContent={latexContent}
+          title={getNeuronTitle()}
           graphData={graphData}
-          >
-          <h2 className="text-xl font-bold mb-2">Hello, Three.js!</h2>
-          <p>This is a draggable window that appeared when you clicked the box.</p>
-          <p>You can move this window around the screen.</p>
-          --- Testing ---
-          <p>Neuron ID: {neuron.id}</p>
-          <p>Layer: {neuron.layer}</p>
-          <p>Type: {neuron.type}</p>
-          <p>Activation: {neuron.activation}</p>
-          <p>Weight: {neuron.weight}</p>
-          <p>Bias: {neuron.bias}</p>
-          <p>Activation function: {neuron.activationFunction}</p>
-          ---------------
+          graphTitle="Neuron Properties Over Time"
+          initialPosition={{ x: 100, y: 0 }}
+        >
+          <div className="neuron-info">
+            <h2 className="text-xl font-bold mb-4 text-blue-400">Neuron Information</h2>
+            
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <div className="font-semibold">ID:</div>
+              <div>{neuron.id}</div>
+              
+              <div className="font-semibold">Layer:</div>
+              <div>{neuron.layer}</div>
+              
+              <div className="font-semibold">Type:</div>
+              <div className="capitalize">{neuron.type}</div>
+              
+              <div className="font-semibold">Activation:</div>
+              <div>{neuron.activation.toFixed(4)}</div>
+              
+              <div className="font-semibold">Weight:</div>
+              <div>{neuron.weight.toFixed(4)}</div>
+              
+              <div className="font-semibold">Bias:</div>
+              <div>{neuron.bias.toFixed(4)}</div>
+              
+              <div className="font-semibold">Activation Function:</div>
+              <div>{neuron.activationFunction}</div>
+            </div>
+            
+            <h3 className="text-lg font-bold mb-2 text-blue-400">Connected Neurons</h3>
+            <div className="max-h-40 overflow-y-auto mb-4">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-700">
+                    <th className="text-left px-2 py-1">ID</th>
+                    <th className="text-left px-2 py-1">Type</th>
+                    <th className="text-left px-2 py-1">Direction</th>
+                    <th className="text-left px-2 py-1">Weight</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {getConnectedNeurons().map((conn, i) => (
+                    <tr key={i} className="border-b border-gray-800">
+                      <td className="px-2 py-1">{conn.id.split('-').slice(-2).join('-')}</td>
+                      <td className="px-2 py-1 capitalize">{conn.type}</td>
+                      <td className="px-2 py-1 capitalize">{conn.direction}</td>
+                      <td className="px-2 py-1">
+                        <span 
+                          className={`px-1 rounded ${
+                            conn.strength > 0.7 ? 'bg-green-900' :
+                            conn.strength > 0.5 ? 'bg-green-800' :
+                            conn.strength < 0.3 ? 'bg-red-900' :
+                            conn.strength < 0.5 ? 'bg-red-800' :
+                            'bg-gray-700'
+                          }`}
+                        >
+                          {conn.strength.toFixed(3)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </DraggableWindowComponent>
       </Html>
     )}

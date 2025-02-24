@@ -2,7 +2,6 @@
 
 import React from "react";
 import { useModelStore } from "@/components/store";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import * as tf from "@tensorflow/tfjs";
 import { Scatter, Line } from 'react-chartjs-2';
@@ -30,37 +29,25 @@ ChartJS.register(
 );
 
 const DatasetSelectionCard = () => {
-  const { createModelAndLoadData, selectedDataset, trainingData } = useModelStore();
+  const { selectedDataset, trainingData } = useModelStore();
+
+  // Helper function to get dataset display name
+  const getDatasetDisplayName = (dataset: string | null) => {
+    switch(dataset) {
+      case 'xor': return 'XOR Problem';
+      case 'sine': return 'Sine Wave Function';
+      case 'mnist': return 'MNIST Handwritten Digits';
+      default: return 'No Dataset Selected';
+    }
+  };
 
   return (
     <Card className="bg-[#31303b] border-none text-white">
       <CardHeader>
-        <CardTitle>Dataset Selection</CardTitle>
+        <CardTitle>Dataset Information</CardTitle>
+        <CardDescription>Currently using: <span className="font-bold text-white">{getDatasetDisplayName(selectedDataset)}</span></CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant={selectedDataset === 'xor' ? 'default' : 'outline'}
-            onClick={() => createModelAndLoadData('xor')}
-            className={`flex-grow basis-1/3 text-xs sm:text-sm ${selectedDataset === 'xor' ? 'bg-white text-black' : 'bg-transparent text-white hover:bg-gray-600 hover:bg-opacity-20'}`}
-          >
-            XOR
-          </Button>
-          <Button
-            variant={selectedDataset === 'sine' ? 'default' : 'outline'}
-            onClick={() => createModelAndLoadData('sine')}
-            className={`flex-grow basis-1/3 text-xs sm:text-sm ${selectedDataset === 'sine' ? 'bg-white text-black' : 'bg-transparent text-white hover:bg-gray-600 hover:bg-opacity-20'}`}
-          >
-            Sine
-          </Button>
-          <Button
-            variant={selectedDataset === 'mnist' ? 'default' : 'outline'}
-            onClick={() => createModelAndLoadData('mnist')}
-            className={`flex-grow basis-1/3 text-xs sm:text-sm ${selectedDataset === 'mnist' ? 'bg-white text-black' : 'bg-transparent text-white hover:bg-gray-600 hover:bg-opacity-20'}`}
-          >
-            {selectedDataset === 'mnist' && trainingData ? 'MNIST' : 'MNIST (Download)'}
-          </Button>
-        </div>
         <DataPreview />
       </CardContent>
     </Card>

@@ -28,6 +28,7 @@ interface ModelActions {
   setTrainingData: (data: { xs: tf.Tensor; ys: tf.Tensor } | null) => void; // New
   createModelAndLoadData: (dataset: 'xor' | 'sine' | 'mnist') => Promise<void>; // Add this
   updateWeightsAndBiases: (model: tf.LayersModel) => void; // Add this
+  rebuildModelFromLayers: () => void;
 }
 
 interface ModelInfo {
@@ -226,51 +227,202 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   createModelAndLoadData: async (dataset) => {
     // Load the dataset first
     await get().loadDataset(dataset);
-
-    // Then create the model
-    const currentModel = get().model;
+    
+    // Get current state after dataset is loaded
+    const state = get();
+    let inputNeurons = state.input_neurons;
+    let outputNeurons = state.output_neurons;
+    
+    // Configure network structure based on dataset
+    switch (dataset) {
+      case 'xor':
+        inputNeurons = 2;
+        outputNeurons = 1;
+        set({ 
+          input_neurons: inputNeurons,
+          output_neurons: outputNeurons,
+          layers: [{ name: 'Hidden Layer 1', neurons: 3 }],
+          num_layers: 1
+        });
+        break;
+      case 'sine':
+        inputNeurons = 1;
+        outputNeurons = 1;
+        set({ 
+          input_neurons: inputNeurons,
+          output_neurons: outputNeurons,
+          layers: [{ name: 'Hidden Layer 1', neurons: 5 }],
+          num_layers: 1
+        });
+        break;
+      case 'mnist':
+        inputNeurons = 784; // 28x28 image
+        outputNeurons = 10; // 10 digits
+        set({ 
+          input_neurons: inputNeurons,
+          output_neurons: outputNeurons,
+          layers: [
+            { name: 'Hidden Layer 1', neurons: 32 },
+            { name: 'Hidden Layer 2', neurons: 16 }
+          ],
+          num_layers: 2
+        });
+        break;
+    }
+    
+    // Dispose existing model if it exists
+    const currentModel = state.model;
     if (currentModel) currentModel.dispose();
-    const newModel = createAndCompileModel(get().inputShape); // Pass inputShape
+    
+    // Create the new model with the updated configuration
+    const newModel = createAndCompileModel(state.inputShape);
+    
+    // Update state with the new model
     set({
       model: newModel,
       curr_acc: 0,
       curr_loss: 0,
-      curr_phase: "training",
-      curr_epoch: 0
+      curr_phase: "ready",
+      curr_epoch: 0,
+      is_training: false
     });
-    get().updateWeightsAndBiases(newModel); // Assuming you add this back to the store
+    
+    // Get the updated model's weights to initialize neurons
+    const modelLayers = newModel.layers;
+    const modelNeurons: Neuron[] = [];
+    
+    // Create input neurons
+    for (let i = 0; i < inputNeurons; i++) {
+      modelNeurons.push({
+        id: `neuron-0-${i}`,
+        position: { x: 0, y: 0, z: 0 },
+        layer: 0,
+        bias: 0,
+        weights: [],
+        activation: 'linear'
+      });
+    }
+    
+    // Create neurons for hidden and output layers
+    for (let layerIndex = 1; layerIndex < modelLayers.length; layerIndex++) {
+      const layer = modelLayers[layerIndex];
+      const weights = layer.getWeights();
+      
+      if (weights && weights.length >= 2) {
+        const weightMatrix = weights[0].arraySync() as number[][];
+        const biasArray = weights[1].arraySync() as number[];
+        
+        for (let i = 0; i < weightMatrix.length; i++) {
+          modelNeurons.push({
+            id: `neuron-${layerIndex}-${i}`,
+            position: { x: 0, y: 0, z: 0 },
+            layer: layerIndex,
+            bias: biasArray[i],
+            weights: weightMatrix[i],
+            activation: layerIndex === modelLayers.length - 1 ? 'sigmoid' : 'relu'
+          });
+        }
+      }
+    }
+    
+    // Update the neurons in store
+    set({ neurons: modelNeurons });
+    
+    console.log(`Dataset ${dataset} loaded with ${modelNeurons.length} neurons`);
+    
+    // Initialize visualization
+    get().initializeNetwork();
   },
   updateWeightsAndBiases: (model: tf.LayersModel) => {
-    model.layers.forEach((layer) => {
-      const weights = layer.getWeights()[0];
-      const biases = layer.getWeights()[1];
-      if (weights && biases) {
-        set((state) => ({
-          neurons: state.neurons.map((neuron, neuronIndex) => {
-            const weightData = weights.arraySync() as number[][];
-            const biasData = biases.arraySync() as number[];
-            return {
-              ...neuron,
-              weights: weightData[neuronIndex] || neuron.weights, // Keep existing weights if not in this layer
-              bias: biasData[neuronIndex] || neuron.bias, // Keep existing bias if not in this layer
-            };
-          }),
-        }));
+    const state = get();
+    
+    // Clone the neurons array to avoid mutation
+    const updatedNeurons = [...state.neurons];
+    
+    // Get the layers 
+    const modelLayers = model.layers;
+    
+    // Skip the input layer (index 0) as it doesn't have weights
+    for (let layerIndex = 1; layerIndex < modelLayers.length; layerIndex++) {
+      const layer = modelLayers[layerIndex];
+      const weights = layer.getWeights();
+      
+      if (weights && weights.length >= 2) {
+        const weightTensor = weights[0]; // Weights matrix
+        const biasTensor = weights[1];   // Biases vector
+        
+        // Convert tensors to arrays
+        const weightMatrix = weightTensor.arraySync() as number[][];
+        const biasArray = biasTensor.arraySync() as number[];
+        
+        // Find neurons in this layer
+        const layerNeurons = updatedNeurons.filter(n => n.layer === layerIndex);
+        
+        // Update each neuron's weights and bias
+        layerNeurons.forEach((neuron, neuronIndexInLayer) => {
+          if (neuronIndexInLayer < weightMatrix.length && 
+              neuronIndexInLayer < biasArray.length) {
+            // Update bias
+            neuron.bias = biasArray[neuronIndexInLayer];
+            
+            // Update weights - these are connections from previous layer
+            neuron.weights = weightMatrix[neuronIndexInLayer];
+            
+            // Log for debugging
+            console.log(`Updated neuron ${neuron.id} in layer ${layerIndex}`);
+            console.log(`  Bias: ${neuron.bias}`);
+            console.log(`  Weights: ${neuron.weights.slice(0, 3)}... (${neuron.weights.length} total)`);
+          }
+        });
       }
+    }
+    
+    // Update the neurons in the store
+    set({ neurons: updatedNeurons });
+    
+    // Now update the visual neurons to reflect the changes
+    const updatedVisualNeurons = [...state.visualNeurons].map(visualNeuron => {
+      // Find corresponding model neuron if it exists
+      const modelNeuron = updatedNeurons.find(n => 
+        n.layer === visualNeuron.layer && 
+        n.id.includes(visualNeuron.id.split('-')[2]) // Match by index in layer
+      );
+      
+      if (modelNeuron) {
+        // Update the visual neuron with model neuron data
+        return {
+          ...visualNeuron,
+          bias: modelNeuron.bias,
+          weight: modelNeuron.weights.length > 0 ? 
+            modelNeuron.weights.reduce((sum, w) => sum + w, 0) / modelNeuron.weights.length : 
+            visualNeuron.weight // Average of weights as a representative value
+        };
+      }
+      
+      return visualNeuron;
     });
+    
+    // Update visual neurons
+    set({ visualNeurons: updatedVisualNeurons });
+    
+    // Update the connections to reflect the new weights
+    get().updateConnections();
   },
   initializeNetwork: () => {
     const state = get();
-    const neurons: NeuronVisual[] = [];
+    const visualNeurons: NeuronVisual[] = [];
+    const connections: Connection[] = [];
+    
+    const totalLayers = state.num_layers + 2; // input + hidden layers + output
     
     // Create input neurons
     for (let i = 0; i < state.input_neurons; i++) {
-      neurons.push({
+      visualNeurons.push({
         id: `input-0-${i}`,
-        position: new Vector3(0, 0, 0),
-        activation: Math.random(),
-        weight: Math.random(),
-        bias: Math.random(),
+        position: new Vector3(0, 0, 0), // Will be updated by recalculatePositions
+        activation: 0.5, // Default activation
+        weight: 1,
+        bias: 0,
         activationFunction: 'relu',
         layer: 0,
         type: 'input'
@@ -280,12 +432,12 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     // Create hidden neurons
     state.layers.forEach((layer, layerIndex) => {
       for (let i = 0; i < layer.neurons; i++) {
-        neurons.push({
+        visualNeurons.push({
           id: `hidden-${layerIndex + 1}-${i}`,
-          position: new Vector3(0, 0, 0),
-          activation: Math.random(),
-          weight: Math.random(),
-          bias: Math.random(),
+          position: new Vector3(0, 0, 0), // Will be updated by recalculatePositions
+          activation: 0.5, // Default activation
+          weight: 1,
+          bias: state.neurons.find(n => n.layer === layerIndex + 1)?.bias || 0,
           activationFunction: 'relu',
           layer: layerIndex + 1,
           type: 'hidden'
@@ -295,20 +447,21 @@ export const useModelStore = create<ModelStore>((set, get) => ({
 
     // Create output neurons
     for (let i = 0; i < state.output_neurons; i++) {
-      neurons.push({
-        id: `output-${state.layers.length + 1}-${i}`,
-        position: new Vector3(0, 0, 0),
-        activation: Math.random(),
-        weight: Math.random(),
-        bias: Math.random(),
+      visualNeurons.push({
+        id: `output-${totalLayers - 1}-${i}`,
+        position: new Vector3(0, 0, 0), // Will be updated by recalculatePositions
+        activation: 0.5, // Default activation
+        weight: 1,
+        bias: state.neurons.find(n => n.layer === totalLayers - 1)?.bias || 0,
         activationFunction: 'sigmoid',
-        layer: state.layers.length + 1,
+        layer: totalLayers - 1,
         type: 'output'
       });
     }
 
-    set({ visualNeurons: neurons });
+    set({ visualNeurons });
     get().recalculatePositions();
+    get().updateConnections();
   },
   recalculatePositions: () => {
     const state = get();
@@ -341,30 +494,89 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   updateConnections: () => {
     const state = get();
     const connections: Connection[] = [];
-    let connectionId = 0;
-    const allLayers = [state.input_neurons, ...state.layers.map(l => l.neurons), state.output_neurons];
-
-    for (let i = 0; i < allLayers.length - 1; i++) {
-      const startLayer = allLayers[i];
-      const endLayer = allLayers[i + 1];
-      const startOffset = allLayers.slice(0, i).reduce((sum, n) => sum + n, 0);
-      const endOffset = startOffset + startLayer;
-
-      for (let j = 0; j < startLayer; j++) {
-        for (let k = 0; k < endLayer; k++) {
-          const startNeuron = state.visualNeurons[startOffset + j];
-          const endNeuron = state.visualNeurons[endOffset + k];
+    const { visualNeurons, neurons } = state;
+    
+    console.log(`Updating connections: ${neurons.length} model neurons, ${visualNeurons.length} visual neurons`);
+    
+    // For each layer except the last, connect to the next layer
+    for (let layerIndex = 0; layerIndex < state.num_layers + 1; layerIndex++) {
+      const thisLayerNeurons = visualNeurons.filter(n => n.layer === layerIndex);
+      const nextLayerNeurons = visualNeurons.filter(n => n.layer === layerIndex + 1);
+      
+      if (nextLayerNeurons.length === 0) continue;
+      
+      // For each neuron in the next layer, create connections from previous layer
+      nextLayerNeurons.forEach(endNeuron => {
+        // Find the model neuron that corresponds to this visual neuron
+        const modelNeuron = neurons.find(n => 
+          n.layer === endNeuron.layer && 
+          (n.id.includes(endNeuron.layer.toString()) && n.id.includes(endNeuron.id.split('-')[2]))
+        );
+        
+        // Connect to each neuron in the previous layer
+        thisLayerNeurons.forEach((startNeuron, startIndex) => {
+          // Default to neutral weight if we can't find a specific weight
+          let weight = 0;
+          let connectionStrength = 0.5;
+          
+          // If we found the model neuron and it has weights
+          if (modelNeuron && modelNeuron.weights && modelNeuron.weights.length > startIndex) {
+            // Get the weight from the model neuron
+            weight = modelNeuron.weights[startIndex];
+            
+            // Convert to a visualization-friendly value (0-1 range)
+            // Using sigmoid to normalize: 1 / (1 + e^-x)
+            connectionStrength = 1 / (1 + Math.exp(-3 * weight)); // Multiply by 3 to increase contrast
+            
+            // Debug logging for some connections
+            if (startIndex === 0 && endNeuron.layer === 1) {
+              console.log(`Connection weight: layer ${layerIndex} → ${layerIndex+1}, raw: ${weight.toFixed(4)}, visual: ${connectionStrength.toFixed(4)}`);
+            }
+          }
+          
+          // Create the connection
           connections.push({
-            id: `connection-${connectionId++}`,
+            id: `${startNeuron.id}-to-${endNeuron.id}`,
             startNeuronId: startNeuron.id,
             endNeuronId: endNeuron.id,
-            strength: endNeuron.activation
+            strength: connectionStrength
           });
-        }
-      }
+        });
+      });
     }
-
+    
+    // Log connection summary
+    console.log(`Updated ${connections.length} connections`);
+    
+    // Update the store
     set({ connections });
+  },
+  rebuildModelFromLayers: () => {
+    const state = get();
+    
+    // Don't proceed if there's no selected dataset or training data
+    if (!state.selectedDataset || !state.trainingData) {
+      return;
+    }
+    
+    // Dispose existing model if it exists
+    if (state.model) {
+      state.model.dispose();
+    }
+    
+    // Create new model with current layer configuration
+    const newModel = createAndCompileModel(state.inputShape);
+    
+    // Update state with new model
+    set({
+      model: newModel,
+      curr_acc: 0,
+      curr_loss: 0,
+      curr_phase: "ready",
+    });
+    
+    // Initialize visualization
+    get().initializeNetwork();
   },
 }));
 
