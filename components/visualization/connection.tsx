@@ -46,36 +46,36 @@ export default function Connection({ connection, neurons }: { connection: Connec
     }
   }, [connection.strength, connection.id, is_training]);
 
-  // Map the connection strength to a color
-  // 0.0-0.3: Strong negative (red)
-  // 0.3-0.48: Weak negative (light red)
-  // 0.48-0.52: Neutral (gray)
-  // 0.52-0.7: Weak positive (light green)
-  // 0.7-1.0: Strong positive (bright green)
+  // Map the connection strength to a color with enhanced contrast and saturation
+  // 0.0-0.3: Strong negative (bright red)
+  // 0.3-0.48: Weak negative (vibrant pink/red)
+  // 0.48-0.52: Neutral (bright silver)
+  // 0.52-0.7: Weak positive (bright teal)
+  // 0.7-1.0: Strong positive (vivid green)
   const color = useMemo(() => {
     if (connection.strength > 0.7) {
-      // Strong positive - bright green
-      return new Color(0, 0.9, 0);
+      // Strong positive - vivid green
+      return new Color(0, 1, 0.2); // More saturated green
     } else if (connection.strength > 0.52) {
-      // Weak positive - light green
-      return new Color(0.4, 0.8, 0.4);
+      // Weak positive - bright teal
+      return new Color(0, 0.9, 0.6); // More distinctive from strong positive
     } else if (connection.strength >= 0.48) {
-      // Neutral - gray
-      return new Color(0.6, 0.6, 0.6);
+      // Neutral - bright silver
+      return new Color(0.8, 0.8, 0.9); // Brighter, slightly blue-tinted
     } else if (connection.strength >= 0.3) {
-      // Weak negative - light red
-      return new Color(0.8, 0.4, 0.4);
+      // Weak negative - vibrant pink/red
+      return new Color(1, 0.4, 0.6); // More vivid and distinctive
     } else {
       // Strong negative - bright red
-      return new Color(0.9, 0, 0);
+      return new Color(1, 0.1, 0.1); // More saturated red
     }
   }, [connection.strength])
 
-  // Scale line width based on connection strength
+  // Scale line width based on connection strength with increased base thickness
   // Further from 0.5 (neutral) = thicker line
   const lineWidth = useMemo(() => {
     const strengthDiff = Math.abs(connection.strength - 0.5) * 2; // Map to 0-1
-    return 1 + strengthDiff * 5; // Thicker base width (1) + up to 5x for strong connections
+    return 1.5 + strengthDiff * 6; // Thicker base width (1.5) + up to 6x for strong connections
   }, [connection.strength]);
 
   if (!startNeuron || !endNeuron) {

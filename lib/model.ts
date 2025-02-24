@@ -3,12 +3,12 @@
 import * as tf from "@tensorflow/tfjs";
 import { Neuron, useModelStore } from "@/components/store";
 
-// Define initialization types for our UI
-export type InitializerType = 'glorot_uniform' | 'he_normal' | 'random_normal' | 'zeros';
+// Remove initializer type export
+// export type InitializerType = 'glorot_uniform' | 'he_normal' | 'random_normal' | 'zeros';
 
 export function createAndCompileModel(
-  inputShape: number[] = [2], 
-  initializer: InitializerType = 'glorot_uniform'
+  inputShape: number[] = [2]
+  // Remove initializer parameter
 ) {
   const {
     input_neurons,
@@ -23,23 +23,10 @@ export function createAndCompileModel(
 
   const neurons: Neuron[] = [];
 
-  // Select the appropriate initializer
-  let kernelInitializer;
-  switch (initializer) {
-    case 'he_normal':
-      kernelInitializer = 'heNormal';
-      break;
-    case 'random_normal':
-      kernelInitializer = tf.initializers.randomNormal({ mean: 0, stddev: 0.1 });
-      break;
-    case 'zeros':
-      kernelInitializer = 'zeros';
-      break;
-    case 'glorot_uniform':
-    default:
-      kernelInitializer = 'glorotUniform';
-      break;
-  }
+  // Always use random normal initialization
+  const kernelInitializer = tf.initializers.randomNormal({ mean: 0, stddev: 0.1 });
+  // Add random initialization for biases too
+  const biasInitializer = tf.initializers.randomNormal({ mean: 0, stddev: 0.1 });
 
   model.add(
     tf.layers.inputLayer({
@@ -59,7 +46,7 @@ export function createAndCompileModel(
     });
   }
 
-  // Add hidden layers with the selected initializer
+  // Add hidden layers with random initialization
   layers.forEach((layer, layerIdx) => {
     const layerIndex = layerIdx + 1;
     model.add(
@@ -67,18 +54,18 @@ export function createAndCompileModel(
         units: layer.neurons,
         activation: "relu",
         kernelInitializer: kernelInitializer,
-        biasInitializer: 'zeros',
+        biasInitializer: biasInitializer,
       })
     );
   });
 
-  // Add output layer with the same initializer
+  // Add output layer with random initialization
   model.add(
     tf.layers.dense({
       units: output_neurons,
       activation: "sigmoid",
       kernelInitializer: kernelInitializer,
-      biasInitializer: 'zeros',
+      biasInitializer: biasInitializer,
     })
   );
 

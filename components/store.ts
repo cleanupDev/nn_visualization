@@ -4,7 +4,7 @@ import { create } from 'zustand';
 import * as tf from "@tensorflow/tfjs";
 import Neuron from './visualization/neuron';
 import { MnistData, NUM_TRAIN_ELEMENTS } from '@/lib/mnist'; // Import MnistData and constants
-import { createAndCompileModel, InitializerType } from '@/lib/model'; // Update import
+import { createAndCompileModel } from '@/lib/model'; // Updated import without InitializerType
 import { Vector3 } from 'three';
 
 interface ModelActions {
@@ -23,13 +23,12 @@ interface ModelActions {
   setNeurons: (updater: (prevNeurons: Neuron[]) => Neuron[]) => void;
   addNeuron: (layer: number) => void;
   removeNeuron: (neuronId: string) => void;
-  loadDataset: (datasetName: 'xor' | 'sine' | 'mnist') => Promise<void>; // New
-  setInputShape: (shape: number[]) => void; // New
-  setTrainingData: (data: { xs: tf.Tensor; ys: tf.Tensor } | null) => void; // New
-  createModelAndLoadData: (dataset: 'xor' | 'sine' | 'mnist', initializer?: InitializerType) => Promise<void>; // Updated
-  updateWeightsAndBiases: (model: tf.LayersModel) => void; // Add this
+  loadDataset: (datasetName: 'xor' | 'sine' | 'mnist') => Promise<void>;
+  setInputShape: (shape: number[]) => void;
+  setTrainingData: (data: { xs: tf.Tensor; ys: tf.Tensor } | null) => void;
+  createModelAndLoadData: (dataset: 'xor' | 'sine' | 'mnist') => Promise<void>; // Updated
+  updateWeightsAndBiases: (model: tf.LayersModel) => void;
   rebuildModelFromLayers: () => void;
-  setWeightInitializer: (type: InitializerType) => void; // New
 }
 
 interface ModelInfo {
@@ -47,9 +46,8 @@ interface ModelInfo {
   is_training: boolean;
   inputShape: number[];
   neurons: Neuron[];
-  selectedDataset: 'xor' | 'sine' | 'mnist' | null; // New
-  trainingData: { xs: tf.Tensor; ys: tf.Tensor } | null; // New
-  weightInitializer: InitializerType; // New
+  selectedDataset: 'xor' | 'sine' | 'mnist' | null;
+  trainingData: { xs: tf.Tensor; ys: tf.Tensor } | null;
 }
 
 export interface Neuron {
@@ -70,6 +68,12 @@ export interface NeuronVisual {
   activationFunction: 'sigmoid' | 'relu' | 'tanh';
   layer: number;
   type: 'hidden' | 'input' | 'output';
+  // Add isWindowOpen flag for selective history tracking
+  isWindowOpen?: boolean;
+  // Add a more robust weight history tracking
+  weightHistory?: number[];
+  biasHistory?: number[];
+  activationHistory?: number[];
 }
 
 export interface Connection {
@@ -77,6 +81,7 @@ export interface Connection {
   startNeuronId: string;
   endNeuronId: string;
   strength: number;
+  rawWeight: number;
 }
 
 type ModelStore = ModelInfo & ModelActions & {
@@ -87,6 +92,8 @@ type ModelStore = ModelInfo & ModelActions & {
   initializeNetwork: () => void;
   recalculatePositions: () => void;
   updateConnections: () => void;
+  // Add a new action to toggle window state
+  toggleNeuronWindow: (neuronId: string, isOpen: boolean) => void;
 };
 
 export const useModelStore = create<ModelStore>((set, get) => ({
@@ -108,10 +115,6 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   trainingData: null, // Initial training data
   visualNeurons: [],
   connections: [],
-  weightInitializer: 'glorot_uniform', // Default initializer
-
-  // Add setter for weight initializer
-  setWeightInitializer: (type: InitializerType) => set({ weightInitializer: type }),
 
   setModel: (model: tf.LayersModel | null) => set({ model }),
   setNumNeurons: (num: number) => set({ num_neurons: num }),
@@ -151,7 +154,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         id: `neuron-${state.neurons.length}`,
         position: { x: 0, y: 0, z: 0 }, // Initial position, will be recalculated
         layer,
-        bias: 0, // Math.random() - 0.5,
+        bias: Math.random() * 0.2 - 0.1, // Random bias between -0.1 and 0.1
         weights: [],
         activation: 'relu', // Default activation, adjust as needed
       };
@@ -229,9 +232,9 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         break;
     }
   },
-  setInputShape: (shape: number[]) => set({ inputShape: shape }), // New
-  setTrainingData: (data: { xs: tf.Tensor; ys: tf.Tensor } | null) => set({ trainingData: data }), // New
-  createModelAndLoadData: async (dataset, initializer) => {
+  setInputShape: (shape: number[]) => set({ inputShape: shape }),
+  setTrainingData: (data: { xs: tf.Tensor; ys: tf.Tensor } | null) => set({ trainingData: data }),
+  createModelAndLoadData: async (dataset) => {
     // Load the dataset first
     await get().loadDataset(dataset);
     
@@ -239,9 +242,6 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     const state = get();
     let inputNeurons = state.input_neurons;
     let outputNeurons = state.output_neurons;
-    
-    // Use provided initializer or the one from state
-    const weightInitializer = initializer || state.weightInitializer;
     
     // Configure network structure based on dataset
     switch (dataset) {
@@ -284,8 +284,8 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     const currentModel = state.model;
     if (currentModel) currentModel.dispose();
     
-    // Create the new model with the updated configuration and specified initializer
-    const newModel = createAndCompileModel(state.inputShape, weightInitializer);
+    // Create the new model with the updated configuration (using random initialization)
+    const newModel = createAndCompileModel(state.inputShape);
     
     // Update state with the new model
     set({
@@ -307,7 +307,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         id: `neuron-0-${i}`,
         position: { x: 0, y: 0, z: 0 },
         layer: 0,
-        bias: 0,
+        bias: Math.random() * 0.2 - 0.1, // Random bias between -0.1 and 0.1 instead of 0
         weights: [],
         activation: 'linear'
       });
@@ -378,10 +378,12 @@ export const useModelStore = create<ModelStore>((set, get) => ({
             // Update weights - these are connections from previous layer
             neuron.weights = weightMatrix[neuronIndexInLayer];
             
-            // Log for debugging
-            console.log(`Updated model neuron ${neuron.id} in layer ${layerIndex}`);
-            console.log(`  Bias: ${neuron.bias}`);
-            console.log(`  Weights: ${neuron.weights.slice(0, 3)}... (${neuron.weights.length} total)`);
+            // Log for debugging (but less frequently)
+            if (neuronIndexInLayer === 0) {
+              console.log(`Updated model neuron ${neuron.id} in layer ${layerIndex}`);
+              console.log(`  Bias: ${neuron.bias}`);
+              console.log(`  Weights: ${neuron.weights.slice(0, 3)}... (${neuron.weights.length} total)`);
+            }
           }
         });
       }
@@ -389,6 +391,17 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     
     // Update the neurons in the store
     set({ neurons: updatedNeurons });
+    
+    // Define the interval for recording history (every 5 epochs)
+    const historyInterval = 5;
+    // Determine if we should record history now:
+    // 1. Record first epoch (0)
+    // 2. Record at each interval (every 5 epochs)
+    // 3. Record the last frame of training
+    const shouldRecordHistory = 
+      state.curr_epoch === 0 || 
+      state.curr_epoch % historyInterval === 0 || 
+      (state.is_training === false && state.curr_phase === "trained");
     
     // Now update the visual neurons to reflect the changes
     const updatedVisualNeurons = [...state.visualNeurons].map(visualNeuron => {
@@ -403,14 +416,41 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       );
       
       if (modelNeuron) {
+        // Calculate average weight
+        const avgWeight = modelNeuron.weights.length > 0 ? 
+          modelNeuron.weights.reduce((sum, w) => sum + w, 0) / modelNeuron.weights.length : 
+          0;
+        
         // Update the visual neuron with model neuron data
-        return {
+        const updatedNeuron = {
           ...visualNeuron,
           bias: modelNeuron.bias,
-          weight: modelNeuron.weights.length > 0 ? 
-            modelNeuron.weights.reduce((sum, w) => sum + w, 0) / modelNeuron.weights.length : 
-            visualNeuron.weight // Average of weights as a representative value
+          weight: avgWeight
         };
+        
+        // Only update history if this neuron's window is open
+        if (visualNeuron.isWindowOpen) {
+          // Initialize history arrays if they don't exist
+          const weightHistory = visualNeuron.weightHistory || [];
+          const biasHistory = visualNeuron.biasHistory || [];
+          const activationHistory = visualNeuron.activationHistory || [];
+          
+          // Only add new history entries when:
+          // 1. We're in training mode AND we're at a recording interval, OR
+          // 2. This is the first entry
+          if ((state.is_training && shouldRecordHistory) || weightHistory.length === 0) {
+            updatedNeuron.weightHistory = [...weightHistory, avgWeight];
+            updatedNeuron.biasHistory = [...biasHistory, modelNeuron.bias];
+            updatedNeuron.activationHistory = [...activationHistory, visualNeuron.activation];
+          } else {
+            // Just maintain existing history arrays
+            updatedNeuron.weightHistory = weightHistory;
+            updatedNeuron.biasHistory = biasHistory;
+            updatedNeuron.activationHistory = activationHistory;
+          }
+        }
+        
+        return updatedNeuron;
       }
       
       return visualNeuron;
@@ -421,6 +461,36 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     
     // Update the connections to reflect the new weights
     get().updateConnections();
+  },
+  // Add method to toggle window state for a neuron
+  toggleNeuronWindow: (neuronId: string, isOpen: boolean) => {
+    set(state => {
+      const updatedNeurons = [...state.visualNeurons].map(neuron => {
+        if (neuron.id === neuronId) {
+          if (isOpen && !neuron.weightHistory) {
+            // Initialize history arrays when window is opened
+            return {
+              ...neuron,
+              isWindowOpen: isOpen,
+              weightHistory: [neuron.weight],
+              biasHistory: [neuron.bias],
+              activationHistory: [neuron.activation]
+            };
+          } else if (!isOpen) {
+            // Clear history when window is closed to save memory
+            const { weightHistory, biasHistory, activationHistory, ...rest } = neuron;
+            return {
+              ...rest,
+              isWindowOpen: false
+            };
+          }
+          return { ...neuron, isWindowOpen: isOpen };
+        }
+        return neuron;
+      });
+      
+      return { visualNeurons: updatedNeurons };
+    });
   },
   initializeNetwork: () => {
     const state = get();
@@ -447,7 +517,8 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         bias: modelNeuron?.bias || 0,
         activationFunction: 'relu',
         layer: 0,
-        type: 'input'
+        type: 'input',
+        isWindowOpen: false
       });
     }
 
@@ -457,17 +528,21 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         // Find the corresponding model neuron
         const modelNeuron = state.neurons.find(n => n.layer === layerIndex + 1 && n.id === `neuron-${layerIndex + 1}-${i}`);
         
+        // Calculate average weight if model neuron exists
+        const avgWeight = modelNeuron && modelNeuron.weights.length > 0 ? 
+          modelNeuron.weights.reduce((sum, w) => sum + w, 0) / modelNeuron.weights.length : 
+          0;
+        
         visualNeurons.push({
           id: `hidden-${layerIndex + 1}-${i}`,
           position: new Vector3(0, 0, 0), // Will be updated by recalculatePositions
           activation: 0.5, // Default activation
-          weight: modelNeuron?.weights.length ? 
-            modelNeuron.weights.reduce((sum, w) => sum + w, 0) / modelNeuron.weights.length : 
-            0, // Use actual weights average if available
+          weight: avgWeight, // Use actual weights average
           bias: modelNeuron?.bias || 0,
           activationFunction: 'relu',
           layer: layerIndex + 1,
-          type: 'hidden'
+          type: 'hidden',
+          isWindowOpen: false
         });
       }
     });
@@ -478,17 +553,21 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       const layerIndex = totalLayers - 1;
       const modelNeuron = state.neurons.find(n => n.layer === layerIndex && n.id === `neuron-${layerIndex}-${i}`);
       
+      // Calculate average weight if model neuron exists
+      const avgWeight = modelNeuron && modelNeuron.weights.length > 0 ? 
+        modelNeuron.weights.reduce((sum, w) => sum + w, 0) / modelNeuron.weights.length : 
+        0;
+      
       visualNeurons.push({
         id: `output-${layerIndex}-${i}`,
         position: new Vector3(0, 0, 0), // Will be updated by recalculatePositions
         activation: 0.5, // Default activation
-        weight: modelNeuron?.weights.length ? 
-          modelNeuron.weights.reduce((sum, w) => sum + w, 0) / modelNeuron.weights.length : 
-          0, // Use actual weights average if available
+        weight: avgWeight, // Use actual weights average
         bias: modelNeuron?.bias || 0,
         activationFunction: 'sigmoid',
         layer: layerIndex,
-        type: 'output'
+        type: 'output',
+        isWindowOpen: false
       });
     }
 
@@ -581,7 +660,8 @@ export const useModelStore = create<ModelStore>((set, get) => ({
             id: `${startNeuron.id}-to-${endNeuron.id}`,
             startNeuronId: startNeuron.id,
             endNeuronId: endNeuron.id,
-            strength: connectionStrength
+            strength: connectionStrength,
+            rawWeight: weight
           });
         });
       });
@@ -606,8 +686,8 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       state.model.dispose();
     }
     
-    // Create new model with current layer configuration and weight initializer
-    const newModel = createAndCompileModel(state.inputShape, state.weightInitializer);
+    // Create new model with current layer configuration (random initialization now)
+    const newModel = createAndCompileModel(state.inputShape);
     
     // Update state with new model
     set({

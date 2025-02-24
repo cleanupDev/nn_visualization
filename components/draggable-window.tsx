@@ -39,9 +39,11 @@ interface DraggableWindowProps {
       data: number[]
       borderColor: string
       backgroundColor: string
+      tension?: number
     }[]
   }
   graphTitle?: string
+  customGraphOptions?: any
   initialPosition?: { x: number, y: number }
 }
 
@@ -52,6 +54,7 @@ export function DraggableWindowComponent({
   latexContent, 
   graphData,
   graphTitle = "Data Over Time",
+  customGraphOptions,
   initialPosition = { x: 0, y: 0 }
 }: DraggableWindowProps) {
   const [isDragging, setIsDragging] = useState(false)
@@ -91,6 +94,7 @@ export function DraggableWindowComponent({
     }
   }, [])
 
+  // Set default graph options
   const graphOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -175,7 +179,7 @@ export function DraggableWindowComponent({
           )}
           {graphData && (
             <div className="mt-4" style={{ height: '200px' }}>
-              <Line options={graphOptions} data={graphData} />
+              <Line options={customGraphOptions || graphOptions} data={graphData} />
             </div>
           )}
         </div>

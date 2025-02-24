@@ -12,7 +12,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "../ui/slider";
-import { InitializerType } from "@/lib/model";
 
 const ControlPanel = () => {
   const {
@@ -31,8 +30,6 @@ const ControlPanel = () => {
     selectedDataset,
     createModelAndLoadData,
     updateWeightsAndBiases,
-    weightInitializer,
-    setWeightInitializer,
     rebuildModelFromLayers
   } = useModelStore();
 
@@ -78,14 +75,6 @@ const ControlPanel = () => {
 
   const handleDatasetChange = (value: string) => {
     createModelAndLoadData(value as 'xor' | 'sine' | 'mnist');
-  };
-
-  const handleInitializerChange = (value: string) => {
-    setWeightInitializer(value as InitializerType);
-    // Rebuild the model with the new initializer if there's already a model
-    if (model) {
-      rebuildModelFromLayers();
-    }
   };
 
   const manualForwardPass = async () => {
@@ -191,23 +180,6 @@ const ControlPanel = () => {
             <SelectItem value="xor">XOR Problem</SelectItem>
             <SelectItem value="sine">Sine Wave</SelectItem>
             <SelectItem value="mnist">MNIST Digits</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-200 mb-1">
-          Weight Initialization
-        </label>
-        <Select onValueChange={handleInitializerChange} defaultValue={weightInitializer}>
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Select initializer" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="glorot_uniform">Glorot Uniform (Default)</SelectItem>
-            <SelectItem value="he_normal">He Normal</SelectItem>
-            <SelectItem value="random_normal">Random Normal</SelectItem>
-            <SelectItem value="zeros">Zeros</SelectItem>
           </SelectContent>
         </Select>
       </div>

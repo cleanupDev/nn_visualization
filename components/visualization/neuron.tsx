@@ -5,6 +5,28 @@ import { useSpring, animated } from '@react-spring/three'
 import { NeuronVisual, useModelStore } from '../store'
 import { OrbitControls, Html } from '@react-three/drei'
 import { DraggableWindowComponent } from '../draggable-window'
+import { Line } from 'react-chartjs-2'
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js'
+
+// Register Chart.js components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+)
 
 export default function Neuron({ neuron, isRealigning }: { neuron: NeuronVisual; isRealigning: boolean }) {
   const meshRef = useRef<Mesh>(null)
@@ -14,70 +36,14 @@ export default function Neuron({ neuron, isRealigning }: { neuron: NeuronVisual;
   const dragPlane = useMemo(() => new Plane(new Vector3(0, 0, 1), 0), [])
   const [showWindow, setShowWindow] = useState(false)
   
-  // Track neuron data over time for graphing
-  const [weightHistory, setWeightHistory] = useState<number[]>([neuron.weight])
-  const [biasHistory, setBiasHistory] = useState<number[]>([neuron.bias])
-  const [activationHistory, setActivationHistory] = useState<number[]>([neuron.activation])
-  const [timeLabels, setTimeLabels] = useState<string[]>(['0'])
-  
-  // Track previous epoch to detect resets
-  const [prevEpoch, setPrevEpoch] = useState(0)
-  
   // Access the global state for real-time updates
-  const { curr_epoch, is_training, neurons } = useModelStore();
+  const { curr_epoch, is_training, toggleNeuronWindow } = useModelStore();
   
-  // Reset histories when training starts a new session
-  // We now need to detect when it's a new training session vs. continuing training
+  // Update window state when it changes
   useEffect(() => {
-    // Only reset when:
-    // 1. Not currently training AND epoch count drops to zero (new training session started)
-    // 2. Was training, and epoch dropped dramatically (new training session started)
-    const isNewTrainingSession = 
-      (!is_training && curr_epoch === 0 && prevEpoch > 0) || 
-      (curr_epoch < prevEpoch && !is_training);
-    
-    if (isNewTrainingSession) {
-      // Reset all histories for a new training session
-      setWeightHistory([neuron.weight]);
-      setBiasHistory([neuron.bias]);
-      setActivationHistory([neuron.activation]);
-      setTimeLabels(['0']);
-      console.log('Reset neuron histories for new training session');
-    }
-    
-    // Update previous epoch
-    setPrevEpoch(curr_epoch);
-  }, [curr_epoch, is_training, neuron.weight, neuron.bias, neuron.activation, prevEpoch]);
-  
-  // Update histories when the neuron properties change
-  useEffect(() => {
-    if (is_training) {
-      // Track weight changes
-      setWeightHistory(prev => {
-        const newHistory = [...prev, neuron.weight];
-        // Keep only the last 20 values for better visualization
-        return newHistory.slice(-20);
-      });
-      
-      // Track bias changes
-      setBiasHistory(prev => {
-        const newHistory = [...prev, neuron.bias];
-        return newHistory.slice(-20);
-      });
-      
-      // Track activation changes
-      setActivationHistory(prev => {
-        const newHistory = [...prev, neuron.activation];
-        return newHistory.slice(-20);
-      });
-      
-      // Update time labels
-      setTimeLabels(prev => {
-        const newLabels = [...prev, curr_epoch.toString()];
-        return newLabels.slice(-20);
-      });
-    }
-  }, [neuron.weight, neuron.bias, neuron.activation, curr_epoch, is_training]);
+    // When window is opened or closed, update the neuron's tracking state in the store
+    toggleNeuronWindow(neuron.id, showWindow);
+  }, [showWindow, neuron.id, toggleNeuronWindow]);
 
   const { animatedPosition } = useSpring({
     animatedPosition: isRealigning ? [neuron.position.x, neuron.position.y, neuron.position.z] : [neuron.position.x, neuron.position.y, neuron.position.z],
@@ -125,7 +91,7 @@ export default function Neuron({ neuron, isRealigning }: { neuron: NeuronVisual;
 
   const onClick = useCallback(() => {
     console.log('Neuron clicked:', neuron.id);
-    setShowWindow(true)
+    setShowWindow(true);
   }, [neuron.id])
 
   useFrame(() => {
@@ -135,33 +101,50 @@ export default function Neuron({ neuron, isRealigning }: { neuron: NeuronVisual;
     }
   })
 
-  // Get the graph data from the history
-  const graphData = useMemo(() => ({
-    labels: timeLabels,
-    datasets: [
-      {
-        label: 'Weight',
-        data: weightHistory,
-        borderColor: '#2f9e44', // Green
-        backgroundColor: 'rgba(47, 158, 68, 0.1)',
-        tension: 0.2,
-      },
-      {
-        label: 'Bias',
-        data: biasHistory,
-        borderColor: '#1971c2', // Blue
-        backgroundColor: 'rgba(25, 113, 194, 0.1)',
-        tension: 0.2,
-      },
-      {
-        label: 'Activation',
-        data: activationHistory,
-        borderColor: '#e03131', // Red
-        backgroundColor: 'rgba(224, 49, 49, 0.1)',
-        tension: 0.2,
-      },
-    ],
-  }), [timeLabels, weightHistory, biasHistory, activationHistory]);
+  // Get the graph data from the neuron's history in the store
+  const graphData = useMemo(() => {
+    // Use the neuron's history from the store if available, or create placeholder data
+    const weightHistory = neuron.weightHistory || [neuron.weight];
+    const biasHistory = neuron.biasHistory || [neuron.bias];
+    const activationHistory = neuron.activationHistory || [neuron.activation];
+    
+    // Create epoch-based labels using epoch intervals (every 5 epochs)
+    // This matches our recording interval in the store
+    const epochInterval = 5;
+    const timeLabels = weightHistory.map((_, i) => {
+      if (i === 0) return '0'; // First point is always epoch 0
+      if (i === weightHistory.length - 1) return curr_epoch.toString(); // Last point is current epoch
+      // Other points follow the interval
+      return (i * epochInterval).toString();
+    });
+    
+    return {
+      labels: timeLabels,
+      datasets: [
+        {
+          label: 'Weight',
+          data: weightHistory,
+          borderColor: '#2f9e44', // Green
+          backgroundColor: 'rgba(47, 158, 68, 0.1)',
+          tension: 0.2,
+        },
+        {
+          label: 'Bias',
+          data: biasHistory,
+          borderColor: '#1971c2', // Blue
+          backgroundColor: 'rgba(25, 113, 194, 0.1)',
+          tension: 0.2,
+        },
+        {
+          label: 'Activation',
+          data: activationHistory,
+          borderColor: '#e03131', // Red
+          backgroundColor: 'rgba(224, 49, 49, 0.1)',
+          tension: 0.2,
+        },
+      ],
+    };
+  }, [neuron.weightHistory, neuron.biasHistory, neuron.activationHistory, neuron.weight, neuron.bias, neuron.activation, curr_epoch]);
 
   // Prepare connected neurons information
   const getConnectedNeurons = () => {
@@ -180,6 +163,7 @@ export default function Neuron({ neuron, isRealigning }: { neuron: NeuronVisual;
         type: otherNeuron?.type || 'unknown',
         layer: otherNeuron?.layer || 0,
         strength: conn.strength,
+        rawWeight: conn.rawWeight,
         direction: isOutput ? 'output' : 'input'
       };
     });
@@ -189,6 +173,89 @@ export default function Neuron({ neuron, isRealigning }: { neuron: NeuronVisual;
   const getNeuronTitle = () => {
     const typeDisplay = neuron.type.charAt(0).toUpperCase() + neuron.type.slice(1);
     return `${typeDisplay} Neuron - Layer ${neuron.layer}`;
+  };
+
+  // Configure the Chart.js options
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: {
+      duration: 100, // Faster animations for better performance
+    },
+    plugins: {
+      legend: {
+        position: 'top' as const,
+        labels: {
+          boxWidth: 10,
+          padding: 10,
+          font: {
+            size: 10,
+          },
+        },
+      },
+      tooltip: {
+        callbacks: {
+          title: (context: any) => {
+            const index = context[0].dataIndex;
+            // For first point, show "Initial"
+            if (index === 0) return 'Initial';
+            // For last point in training, show "Current (Epoch X)"
+            if (index === context[0].dataset.data.length - 1) 
+              return `Current (Epoch ${curr_epoch})`;
+            // Otherwise show the epoch number
+            return `Epoch ${context[0].label}`;
+          },
+          label: (context: any) => {
+            let label = context.dataset.label || '';
+            if (label) {
+              label += ': ';
+            }
+            if (context.parsed.y !== null) {
+              label += context.parsed.y.toFixed(4);
+            }
+            return label;
+          }
+        }
+      },
+    },
+    scales: {
+      x: {
+        title: {
+          display: true,
+          text: 'Epoch',
+          font: {
+            size: 10,
+          },
+        },
+        ticks: {
+          autoSkip: true,
+          maxTicksLimit: 8, // Limit the number of ticks shown
+          font: {
+            size: 8, // Smaller font for x-axis ticks
+          },
+        },
+      },
+      y: {
+        title: {
+          display: true,
+          text: 'Value',
+          font: {
+            size: 10,
+          },
+        },
+        ticks: {
+          font: {
+            size: 8, // Smaller font for y-axis ticks
+          },
+        },
+      },
+    },
+  };
+
+  const getValueColorClass = (value: number) => {
+    if (value > 0) return 'text-green-500';
+    if (value < 0) return 'text-red-500';
+    return 'text-gray-500';
   };
 
   return (
@@ -213,6 +280,7 @@ export default function Neuron({ neuron, isRealigning }: { neuron: NeuronVisual;
           title={getNeuronTitle()}
           graphData={graphData}
           graphTitle="Neuron Properties Over Time"
+          customGraphOptions={options}
           initialPosition={{ x: 100, y: 0 }}
         >
           <div className="neuron-info">
@@ -268,13 +336,29 @@ export default function Neuron({ neuron, isRealigning }: { neuron: NeuronVisual;
                             'bg-gray-700'
                           }`}
                         >
-                          {conn.strength.toFixed(3)}
+                          {conn.rawWeight.toFixed(4)}
                         </span>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-xs text-center mt-2">
+              <div>
+                <div className="font-semibold">Weight</div>
+                <div className={getValueColorClass(neuron.weight)}>{neuron.weight.toFixed(4)}</div>
+              </div>
+              <div>
+                <div className="font-semibold">Bias</div>
+                <div className={getValueColorClass(neuron.bias)}>{neuron.bias.toFixed(4)}</div>
+              </div>
+              {!is_training && (
+                <div>
+                  <div className="font-semibold">Activation</div>
+                  <div className={getValueColorClass(neuron.activation)}>{neuron.activation.toFixed(4)}</div>
+                </div>
+              )}
             </div>
           </div>
         </DraggableWindowComponent>
