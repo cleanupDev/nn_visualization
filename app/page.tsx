@@ -9,6 +9,7 @@ import LayerInfoCard from '@/components/sidecards/LayerInfoCard'
 import { GitHubLink } from '@/components/GitHubLink'
 import { FeedbackButtonComponent } from '@/components/feedback-button'
 import { TutorialPopupComponent } from '@/components/tutorial-popup'
+import { TutorialButton } from '@/components/tutorial-button'
 
 const NeuralNetVisualization = dynamic(() => import('@/components/visualization/neural-net-visualization'), { ssr: false })
 
@@ -35,9 +36,12 @@ export default function MainPage() {
             <ControllPanel />
           </div>
         </NeuralNetVisualization>
-        <div className="fixed bottom-4 left-4 z-50 flex space-x-4">
+        <div className="fixed bottom-4 left-4 z-50 flex items-center">
           <GitHubLink repoUrl="https://github.com/cleanupDev/nn_visualization" />
+          <div className="w-5"></div>
           <FeedbackButtonComponent />
+          <div className="w-5"></div>
+          <TutorialButton />
         </div>
       </main>
     </ErrorBoundary>

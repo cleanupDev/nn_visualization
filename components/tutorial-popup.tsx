@@ -5,9 +5,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, BookOpen } from "lucide-react"
 import Image from "next/image";
 
+// Singleton pattern to share tutorial state across components
+let globalSetIsOpen: ((isOpen: boolean) => void) | null = null;
 
 interface TutorialStep {
   title: string
@@ -16,9 +18,16 @@ interface TutorialStep {
   mediaType: "image" | "video" | "gif"
 }
 
+// Function to open tutorial from outside components
+export function openTutorial() {
+  if (globalSetIsOpen) {
+    globalSetIsOpen(true);
+  }
+}
+
 const tutorialSteps: TutorialStep[] = [
   {
-    title: "Welcome to Look-Inside-AI!",
+    title: "Welcome to LookInsideAI!",
     description: "This interactive tool allows you to visualize and understand how basic neural networks work. This tutorial will guide you through the main features.",
     media: "/placeholder.svg", // Replace with a relevant image later
     mediaType: "image"
@@ -66,12 +75,30 @@ export function TutorialPopupComponent() {
   const [currentStep, setCurrentStep] = useState(0)
   const [dontShowAgain, setDontShowAgain] = useState(false)
 
+  // Store the setter function in the global variable
   useEffect(() => {
+    globalSetIsOpen = setIsOpen;
+    return () => {
+      globalSetIsOpen = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    // Debug log to check current value (comment out in production)
+    console.log("Current shouldShowTutorial value:", localStorage.getItem("shouldShowTutorial"));
+    
     const shouldShowTutorial = localStorage.getItem("shouldShowTutorial")
     if (shouldShowTutorial !== "false") {
+      console.log("Opening tutorial popup");
       setIsOpen(true)
     }
   }, [])
+
+  // Function to reset tutorial state for testing
+  const resetTutorialState = () => {
+    localStorage.removeItem("shouldShowTutorial");
+    window.location.reload();
+  }
 
   const handleClose = () => {
     setIsOpen(false)
@@ -101,30 +128,33 @@ export function TutorialPopupComponent() {
   return (
     <>
       {isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-40" aria-hidden="true" />
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50" aria-hidden="true" />
       )}
       <Dialog
         open={isOpen}
         onOpenChange={(open) => {
-          if (!open && dontShowAgain) {
-            localStorage.setItem("shouldShowTutorial", "false");
+          if (!open) {
+            // Save preference when dialog is closed by any means
+            if (dontShowAgain) {
+              localStorage.setItem("shouldShowTutorial", "false");
+            }
           }
           setIsOpen(open);
         }}
       >
-        <DialogContent className="w-[80vw] h-[80vh] bg-gray-800 text-white z-50">
+        <DialogContent className="w-[70vw] max-w-3xl h-auto max-h-[700px] bg-black border border-zinc-800 text-white z-50 rounded-xl shadow-2xl backdrop-blur-xl overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>{tutorialSteps[currentStep].title}</DialogTitle>
-            <DialogDescription className="text-gray-300">
+            <DialogTitle className="text-2xl font-bold text-cyan-400">{tutorialSteps[currentStep].title}</DialogTitle>
+            <DialogDescription className="text-zinc-300 mt-2">
               {tutorialSteps[currentStep].description}
             </DialogDescription>
           </DialogHeader>
-          <div className="my-4">
+          <div className="my-4 flex-grow flex items-center justify-center">
             {tutorialSteps[currentStep].media && (
               tutorialSteps[currentStep].mediaType === "video" ? (
                 <video
                   src={tutorialSteps[currentStep].media}
-                  className="w-full h-full rounded-md"
+                  className="w-full h-auto max-h-[40vh] rounded-md border border-zinc-700"
                   autoPlay
                   loop
                   muted
@@ -134,39 +164,43 @@ export function TutorialPopupComponent() {
                 <Image
                   src={tutorialSteps[currentStep].media || "/default-placeholder.svg"}
                   alt={tutorialSteps[currentStep].title}
-                  className="w-full h-full rounded-md"
-                  width={300}
-                  height={200}
+                  className="w-auto h-auto max-h-[40vh] rounded-md border border-zinc-700"
+                  width={400}
+                  height={250}
                 />
               )
             )}
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 mt-2 mb-4">
             <Checkbox
               id="dontShowAgain"
               checked={dontShowAgain}
               onCheckedChange={handleDontShowAgainChange}
+              className="border-zinc-600 data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
             />
             <Label
               htmlFor="dontShowAgain"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              className="text-sm font-medium text-zinc-300"
             >
               Don&apos;t show again
             </Label>
           </div>
-          <DialogFooter className="flex justify-between">
+          <div className="flex justify-between pt-4 border-t border-zinc-800 mt-auto">
             <Button
               variant="outline"
               onClick={handlePrevious}
               disabled={currentStep === 0}
-              className="bg-gray-700 text-white hover:bg-gray-600"
+              className="bg-zinc-900 text-white border border-zinc-700 hover:bg-zinc-800 hover:border-zinc-600 transition-all"
             >
               <ChevronLeft className="mr-2 h-4 w-4" /> Previous
             </Button>
-            <Button onClick={handleNext} className="bg-primary text-primary-foreground hover:bg-primary/90">
+            <Button 
+              onClick={handleNext} 
+              className="bg-cyan-600 text-white hover:bg-cyan-500 transition-all"
+            >
               {currentStep === tutorialSteps.length - 1 ? "Finish" : "Next"} <ChevronRight className="ml-2 h-4 w-4" />
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </>
