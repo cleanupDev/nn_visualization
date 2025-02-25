@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import NeuralNetwork from './neural-network'
 import CameraController from './camera-controller'
+import { Environment } from '@react-three/drei'
 import { SceneControls } from '@/components/scene-controls'
 import { useModelStore } from '@/components/store'
 
@@ -38,9 +39,28 @@ export default function NeuralNetVisualization({ children }: { children: React.R
         }}
       >
         <color attach="background" args={['#030712']} />
-        <fog attach="fog" args={['#030712', 15, 40]} />
+        <fog attach="fog" args={['#030712', 30, 60]} />
         <ambientLight intensity={0.4} />
-        <directionalLight position={[10, 10, 5]} intensity={0.8} />
+        <directionalLight 
+          position={[10, 10, 5]} 
+          intensity={0.9}
+          color="#ffffff" 
+        />
+        <directionalLight 
+          position={[-8, -5, -2]} 
+          intensity={0.3} 
+          color="#5865f2" 
+        />
+        <pointLight
+          position={[0, 0, 10]}
+          intensity={0.4}
+          color="#ffffff"
+          distance={50}
+        />
+        
+        {/* Add environment map for reflections on materials */}
+        <Environment preset="night" background={false} />
+        
         <NeuralNetwork />
         <CameraController />
       </Canvas>

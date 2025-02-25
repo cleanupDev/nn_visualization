@@ -50,13 +50,23 @@ export default function Neuron({ neuron, isRealigning }: { neuron: NeuronVisual;
     config: { mass: 1, tension: 180, friction: 12 }
   })
 
-  // Get color based on neuron type
+  // Use the same color (input neuron dark blue) for all neurons
   const neuronColor = useMemo(() => {
-    // Using a more vibrant professional blue for all neuron types
-    return new Color(0.1, 0.4, 0.9); // #1a66e6 - vibrant blue
-  }, [neuron.type]);
+    // Darker blue for all neurons
+    return new Color(0.0, 0.3, 0.6);
+  }, []);
   
-  const hoverColor = useMemo(() => neuronColor.clone().lerp(new Color(0.6, 0.8, 1), 0.5), [neuronColor])
+  // Brighter hover color
+  const hoverColor = useMemo(() => {
+    // Slightly brighter blue for hover effect
+    return new Color(0.1, 0.4, 0.8);
+  }, []);
+  
+  // Emissive color for the glow effect - less bright than main color
+  const emissiveColor = useMemo(() => neuronColor.clone().multiplyScalar(0.4), [neuronColor]);
+  
+  // Hover emissive - brighter glow on hover
+  const hoverEmissive = useMemo(() => emissiveColor.clone().multiplyScalar(2), [emissiveColor]);
 
   const onPointerDown = useCallback((event: ThreeEvent<PointerEvent>) => {
     event.stopPropagation()
@@ -328,8 +338,15 @@ $a = \\text{neuron output}$
       onPointerLeave={onPointerLeave}
       onClick={onClick}
     >
-      <sphereGeometry args={[0.2, 16, 16]} />
-      <meshBasicMaterial color={isHovered ? hoverColor : neuronColor} />
+      <sphereGeometry args={[0.25, 32, 32]} />
+      <meshStandardMaterial 
+        color={isHovered ? hoverColor : neuronColor} 
+        emissive={isHovered ? hoverEmissive : emissiveColor}
+        emissiveIntensity={isHovered ? 0.6 : 0.3}
+        metalness={0.3}
+        roughness={0.7}
+        envMapIntensity={0.8}
+      />
     </animated.mesh>
     {showWindow && (
       <Html center>
