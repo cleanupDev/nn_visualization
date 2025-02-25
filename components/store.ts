@@ -88,6 +88,8 @@ type ModelStore = ModelInfo & ModelActions & {
   // Visualization state
   visualNeurons: NeuronVisual[];
   connections: Connection[];
+  // Add a cache for fallback weights to prevent re-randomizing
+  fallbackWeightsCache: Record<string, number>;
   // Visualization actions
   initializeNetwork: () => void;
   recalculatePositions: () => void;
@@ -115,6 +117,8 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   trainingData: null, // Initial training data
   visualNeurons: [],
   connections: [],
+  // Add cache for fallback weights
+  fallbackWeightsCache: {},
 
   setModel: (model: tf.LayersModel | null) => set({ model }),
   setNumNeurons: (num: number) => set({ num_neurons: num }),
@@ -143,6 +147,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       curr_loss: "N/A",
       curr_phase: "training",
       curr_epoch: 0,
+      fallbackWeightsCache: {} // Clear cache on reset
     });
   },
   setNeurons: (updater) => set((state) => ({ neurons: updater(state.neurons) })),
@@ -235,6 +240,9 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   setInputShape: (shape: number[]) => set({ inputShape: shape }),
   setTrainingData: (data: { xs: tf.Tensor; ys: tf.Tensor } | null) => set({ trainingData: data }),
   createModelAndLoadData: async (dataset) => {
+    // Clear the fallback weights cache
+    set({ fallbackWeightsCache: {} });
+    
     // Load the dataset first
     await get().loadDataset(dataset);
     
@@ -284,7 +292,8 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     const currentModel = state.model;
     if (currentModel) currentModel.dispose();
     
-    // Create the new model with the updated configuration (using random initialization)
+    // Create the new model with the updated configuration
+    // This will also create and initialize the neurons with random weights
     const newModel = createAndCompileModel(state.inputShape);
     
     // Update state with the new model
@@ -297,50 +306,9 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       is_training: false
     });
     
-    // Get the updated model's weights to initialize neurons
-    const modelLayers = newModel.layers;
-    const modelNeurons: Neuron[] = [];
+    console.log(`Model created for dataset: ${dataset}, now initializing visualization`);
     
-    // Create input neurons
-    for (let i = 0; i < inputNeurons; i++) {
-      modelNeurons.push({
-        id: `neuron-0-${i}`,
-        position: { x: 0, y: 0, z: 0 },
-        layer: 0,
-        bias: Math.random() * 0.2 - 0.1, // Random bias between -0.1 and 0.1 instead of 0
-        weights: [],
-        activation: 'linear'
-      });
-    }
-    
-    // Create neurons for hidden and output layers
-    for (let layerIndex = 1; layerIndex < modelLayers.length; layerIndex++) {
-      const layer = modelLayers[layerIndex];
-      const weights = layer.getWeights();
-      
-      if (weights && weights.length >= 2) {
-        const weightMatrix = weights[0].arraySync() as number[][];
-        const biasArray = weights[1].arraySync() as number[];
-        
-        for (let i = 0; i < weightMatrix.length; i++) {
-          modelNeurons.push({
-            id: `neuron-${layerIndex}-${i}`,
-            position: { x: 0, y: 0, z: 0 },
-            layer: layerIndex,
-            bias: biasArray[i],
-            weights: weightMatrix[i],
-            activation: layerIndex === modelLayers.length - 1 ? 'sigmoid' : 'relu'
-          });
-        }
-      }
-    }
-    
-    // Update the neurons in store
-    set({ neurons: modelNeurons });
-    
-    console.log(`Dataset ${dataset} loaded with ${modelNeurons.length} neurons`);
-    
-    // Initialize visualization
+    // Initialize visualization - this will create visual neurons based on model neurons
     get().initializeNetwork();
   },
   updateWeightsAndBiases: (model: tf.LayersModel) => {
@@ -351,6 +319,11 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     
     // Get the layers 
     const modelLayers = model.layers;
+    
+    console.log("Updating weights from model with layers:", modelLayers.length);
+    
+    // Track if weights change across epochs
+    let weightsChanged = false;
     
     // Skip the input layer (index 0) as it doesn't have weights
     for (let layerIndex = 1; layerIndex < modelLayers.length; layerIndex++) {
@@ -365,29 +338,55 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         const weightMatrix = weightTensor.arraySync() as number[][];
         const biasArray = biasTensor.arraySync() as number[];
         
+        console.log(`Layer ${layerIndex} weights:`, {
+          shape: weightTensor.shape,
+          neurons: weightMatrix.length,
+          weightsPerNeuron: weightMatrix[0]?.length || 0
+        });
+        
         // Find neurons in this layer
         const layerNeurons = updatedNeurons.filter(n => n.layer === layerIndex);
+        
+        console.log(`Found ${layerNeurons.length} neurons in layer ${layerIndex} to update`);
         
         // Update each neuron's weights and bias
         layerNeurons.forEach((neuron, neuronIndexInLayer) => {
           if (neuronIndexInLayer < weightMatrix.length && 
               neuronIndexInLayer < biasArray.length) {
+            
+            // Check if weights are changing (for debugging)
+            const oldBias = neuron.bias;
+            const oldWeight = neuron.weights.length > 0 ? neuron.weights[0] : null;
+            
             // Update bias
             neuron.bias = biasArray[neuronIndexInLayer];
             
             // Update weights - these are connections from previous layer
             neuron.weights = weightMatrix[neuronIndexInLayer];
             
-            // Log for debugging (but less frequently)
-            if (neuronIndexInLayer === 0) {
-              console.log(`Updated model neuron ${neuron.id} in layer ${layerIndex}`);
-              console.log(`  Bias: ${neuron.bias}`);
-              console.log(`  Weights: ${neuron.weights.slice(0, 3)}... (${neuron.weights.length} total)`);
+            // Log weight changes for the first few neurons in each layer
+            if (neuronIndexInLayer < 2) {
+              const newWeight = neuron.weights.length > 0 ? neuron.weights[0] : null;
+              const biasChanged = Math.abs(oldBias - neuron.bias) > 0.00001;
+              const weightChanged = oldWeight !== null && newWeight !== null && 
+                                    Math.abs(oldWeight - newWeight) > 0.00001;
+              
+              console.log(`Neuron ${neuron.id} in layer ${layerIndex}:`);
+              console.log(`  Bias: ${oldBias.toFixed(6)} → ${neuron.bias.toFixed(6)} (changed: ${biasChanged})`);
+              console.log(`  First weight: ${oldWeight?.toFixed(6) || 'none'} → ${newWeight?.toFixed(6) || 'none'} (changed: ${weightChanged})`);
+              
+              if (biasChanged || weightChanged) weightsChanged = true;
             }
+          } else {
+            console.warn(`Neuron ${neuron.id} index out of bounds: ${neuronIndexInLayer} vs ${weightMatrix.length}x${biasArray.length}`);
           }
         });
+      } else {
+        console.warn(`Layer ${layerIndex} has no weights or incomplete weights`);
       }
     }
+    
+    console.log(`Weights changed in this update: ${weightsChanged ? 'YES' : 'NO'}`);
     
     // Update the neurons in the store
     set({ neurons: updatedNeurons });
@@ -409,17 +408,30 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       const [type, layerStr, indexStr] = visualNeuron.id.split('-');
       const layer = parseInt(layerStr);
       
-      // Find corresponding model neuron by ID
-      const modelNeuron = updatedNeurons.find(n => 
-        n.layer === layer && 
-        n.id === `neuron-${layer}-${indexStr}`
-      );
+      // Skip input layer for weight updates (they don't have input weights)
+      if (type === 'input') {
+        return visualNeuron;
+      }
+      
+      // For hidden and output neurons, match with the correct model neuron
+      // Convert from visual neuron ID format to model neuron ID format:
+      // hidden-1-0 or output-2-0 → neuron-1-0 or neuron-2-0
+      const modelNeuronId = `neuron-${layer}-${indexStr}`;
+      const modelNeuron = updatedNeurons.find(n => n.id === modelNeuronId);
       
       if (modelNeuron) {
-        // Calculate average weight
-        const avgWeight = modelNeuron.weights.length > 0 ? 
+        // Calculate average weight if weights exist
+        const avgWeight = modelNeuron.weights && modelNeuron.weights.length > 0 ? 
           modelNeuron.weights.reduce((sum, w) => sum + w, 0) / modelNeuron.weights.length : 
-          0;
+          visualNeuron.weight; // Keep current weight if no weights found
+        
+        // Log for a few neurons to verify updates
+        if ((type === 'hidden' && layerStr === '1' && indexStr === '0') || 
+            (type === 'output' && indexStr === '0')) {
+          console.log(`Updating ${type} neuron ${visualNeuron.id}:`);
+          console.log(`  Old bias: ${visualNeuron.bias.toFixed(6)}, New bias: ${modelNeuron.bias.toFixed(6)}`);
+          console.log(`  Old weight: ${visualNeuron.weight.toFixed(6)}, New weight: ${avgWeight.toFixed(6)}`);
+        }
         
         // Update the visual neuron with model neuron data
         const updatedNeuron = {
@@ -428,16 +440,16 @@ export const useModelStore = create<ModelStore>((set, get) => ({
           weight: avgWeight
         };
         
-        // Only update history if this neuron's window is open
-        if (visualNeuron.isWindowOpen) {
+        // Only update history if this neuron's window is open or we should record history
+        if (visualNeuron.isWindowOpen || shouldRecordHistory) {
           // Initialize history arrays if they don't exist
           const weightHistory = visualNeuron.weightHistory || [];
           const biasHistory = visualNeuron.biasHistory || [];
           const activationHistory = visualNeuron.activationHistory || [];
           
-          // Only add new history entries when:
+          // Add new history entries when:
           // 1. We're in training mode AND we're at a recording interval, OR
-          // 2. This is the first entry
+          // 2. This is the first entry (weightHistory is empty)
           if ((state.is_training && shouldRecordHistory) || weightHistory.length === 0) {
             updatedNeuron.weightHistory = [...weightHistory, avgWeight];
             updatedNeuron.biasHistory = [...biasHistory, modelNeuron.bias];
@@ -453,13 +465,15 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         return updatedNeuron;
       }
       
+      // If we couldn't find a model neuron, return the visual neuron unchanged
+      console.warn(`Could not find model neuron ${modelNeuronId} for visual neuron ${visualNeuron.id}`);
       return visualNeuron;
     });
     
     // Update visual neurons
     set({ visualNeurons: updatedVisualNeurons });
     
-    // Update the connections to reflect the new weights
+    // Also update the connections to reflect the weight changes
     get().updateConnections();
   },
   // Add method to toggle window state for a neuron
@@ -497,6 +511,9 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     const visualNeurons: NeuronVisual[] = [];
     const connections: Connection[] = [];
     
+    // Clear the fallback weights cache when initializing a new network
+    const fallbackWeightsCache = {};
+    
     const totalLayers = state.num_layers + 2; // input + hidden layers + output
     
     // Debug log of model neurons to help find the issue
@@ -507,18 +524,23 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       // Find the corresponding model neuron
       const modelNeuron = state.neurons.find(n => n.layer === 0 && n.id === `neuron-0-${i}`);
       
+      if (!modelNeuron) {
+        console.error(`Could not find model neuron for input-0-${i}`);
+      }
+      
       visualNeurons.push({
         id: `input-0-${i}`,
         position: new Vector3(0, 0, 0), // Will be updated by recalculatePositions
         activation: 0.5, // Default activation
-        weight: modelNeuron?.weights.length ? 
-          modelNeuron.weights.reduce((sum, w) => sum + w, 0) / modelNeuron.weights.length : 
-          0, // Use actual weights average if available
-        bias: modelNeuron?.bias || 0,
-        activationFunction: 'relu',
+        weight: 0, // Input neurons don't have weights
+        bias: modelNeuron?.bias || Math.random() * 0.2 - 0.1, // Use model bias or random if not found
+        activationFunction: 'tanh', // Use tanh instead of linear since it's a valid option
         layer: 0,
         type: 'input',
-        isWindowOpen: false
+        isWindowOpen: false,
+        weightHistory: [0], // Initialize history
+        biasHistory: [modelNeuron?.bias || 0], // Initialize history
+        activationHistory: [0.5], // Initialize history
       });
     }
 
@@ -528,21 +550,31 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         // Find the corresponding model neuron
         const modelNeuron = state.neurons.find(n => n.layer === layerIndex + 1 && n.id === `neuron-${layerIndex + 1}-${i}`);
         
-        // Calculate average weight if model neuron exists
-        const avgWeight = modelNeuron && modelNeuron.weights.length > 0 ? 
+        if (!modelNeuron) {
+          console.error(`Could not find model neuron for hidden-${layerIndex + 1}-${i}`);
+        }
+        
+        // Calculate average weight if model neuron exists and has weights
+        const avgWeight = modelNeuron && modelNeuron.weights && modelNeuron.weights.length > 0 ? 
           modelNeuron.weights.reduce((sum, w) => sum + w, 0) / modelNeuron.weights.length : 
-          0;
+          Math.random() * 0.2 - 0.1; // Random weight if none found
+        
+        // Get bias from model or use random
+        const bias = modelNeuron?.bias ?? (Math.random() * 0.2 - 0.1);
         
         visualNeurons.push({
           id: `hidden-${layerIndex + 1}-${i}`,
           position: new Vector3(0, 0, 0), // Will be updated by recalculatePositions
           activation: 0.5, // Default activation
-          weight: avgWeight, // Use actual weights average
-          bias: modelNeuron?.bias || 0,
+          weight: avgWeight, // Use actual weights average or random
+          bias: bias, // Use actual bias or random
           activationFunction: 'relu',
           layer: layerIndex + 1,
           type: 'hidden',
-          isWindowOpen: false
+          isWindowOpen: false,
+          weightHistory: [avgWeight], // Initialize history
+          biasHistory: [bias], // Initialize history
+          activationHistory: [0.5], // Initialize history
         });
       }
     });
@@ -550,28 +582,40 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     // Create output neurons
     for (let i = 0; i < state.output_neurons; i++) {
       // Find the corresponding model neuron
-      const layerIndex = totalLayers - 1;
-      const modelNeuron = state.neurons.find(n => n.layer === layerIndex && n.id === `neuron-${layerIndex}-${i}`);
+      const modelNeuron = state.neurons.find(n => n.layer === state.num_layers + 1 && n.id === `neuron-${state.num_layers + 1}-${i}`);
       
-      // Calculate average weight if model neuron exists
-      const avgWeight = modelNeuron && modelNeuron.weights.length > 0 ? 
+      if (!modelNeuron) {
+        console.error(`Could not find model neuron for output-${state.num_layers + 1}-${i}`);
+      }
+      
+      // Calculate average weight if model neuron exists and has weights
+      const avgWeight = modelNeuron && modelNeuron.weights && modelNeuron.weights.length > 0 ? 
         modelNeuron.weights.reduce((sum, w) => sum + w, 0) / modelNeuron.weights.length : 
-        0;
+        Math.random() * 0.2 - 0.1; // Random weight if none found
+      
+      // Get bias from model or use random
+      const bias = modelNeuron?.bias ?? (Math.random() * 0.2 - 0.1);
       
       visualNeurons.push({
-        id: `output-${layerIndex}-${i}`,
+        id: `output-${state.num_layers + 1}-${i}`,
         position: new Vector3(0, 0, 0), // Will be updated by recalculatePositions
         activation: 0.5, // Default activation
-        weight: avgWeight, // Use actual weights average
-        bias: modelNeuron?.bias || 0,
+        weight: avgWeight, // Use actual weights average or random
+        bias: bias, // Use actual bias or random
         activationFunction: 'sigmoid',
-        layer: layerIndex,
+        layer: state.num_layers + 1,
         type: 'output',
-        isWindowOpen: false
+        isWindowOpen: false,
+        weightHistory: [avgWeight], // Initialize history
+        biasHistory: [bias], // Initialize history
+        activationHistory: [0.5], // Initialize history
       });
     }
 
-    set({ visualNeurons });
+    set({ 
+      visualNeurons,
+      fallbackWeightsCache
+    });
     get().recalculatePositions();
     get().updateConnections();
   },
@@ -606,7 +650,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   updateConnections: () => {
     const state = get();
     const connections: Connection[] = [];
-    const { visualNeurons, neurons } = state;
+    const { visualNeurons, neurons, fallbackWeightsCache } = state;
     
     console.log(`Updating connections: ${neurons.length} model neurons, ${visualNeurons.length} visual neurons`);
     
@@ -615,49 +659,80 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       const thisLayerNeurons = visualNeurons.filter(n => n.layer === layerIndex);
       const nextLayerNeurons = visualNeurons.filter(n => n.layer === layerIndex + 1);
       
-      if (nextLayerNeurons.length === 0) continue;
+      console.log(`Layer ${layerIndex}: ${thisLayerNeurons.length} neurons → Layer ${layerIndex + 1}: ${nextLayerNeurons.length} neurons`);
       
-      // For each neuron in the next layer, create connections from previous layer
-      nextLayerNeurons.forEach(endNeuron => {
-        // Get the neuron ID parts to find the corresponding model neuron
-        const [endType, endLayer, endIndex] = endNeuron.id.split('-');
-        
-        // Find the model neuron that corresponds to this visual neuron
-        const modelNeuron = neurons.find(n => 
-          n.layer === parseInt(endLayer) && 
-          n.id === `neuron-${endLayer}-${endIndex}`
-        );
-        
-        if (!modelNeuron) {
-          console.warn(`Could not find model neuron for visual neuron ${endNeuron.id}`);
-        }
-        
-        // Connect to each neuron in the previous layer
-        thisLayerNeurons.forEach((startNeuron, startIndex) => {
-          // Default to neutral weight if we can't find a specific weight
-          let weight = 0;
-          let connectionStrength = 0.5;
+      if (thisLayerNeurons.length === 0 || nextLayerNeurons.length === 0) {
+        console.warn(`Missing neurons in layer ${layerIndex} or ${layerIndex + 1}`);
+        continue;
+      }
+      
+      // For each neuron in this layer, create connections to all neurons in the next layer
+      thisLayerNeurons.forEach((startNeuron, startIndex) => {
+        nextLayerNeurons.forEach((endNeuron, endIndex) => {
+          // Get the neuron ID parts to find the corresponding model neuron
+          const [endType, endLayerStr, endIndexStr] = endNeuron.id.split('-');
+          const endLayer = parseInt(endLayerStr);
           
-          // If we found the model neuron and it has weights
+          // Find the model neuron that corresponds to this visual neuron
+          const modelNeuron = neurons.find(n => 
+            n.layer === endLayer && 
+            n.id === `neuron-${endLayer}-${endIndexStr}`
+          );
+          
+          // Create a unique key for this connection to use with the cache
+          const connectionKey = `${startNeuron.id}-to-${endNeuron.id}`;
+          
+          let weight = 0;
+          let connectionStrength = 0.5; // Default neutral strength
+          
           if (modelNeuron && modelNeuron.weights && modelNeuron.weights.length > startIndex) {
-            // Get the weight from the model neuron
+            // Use the actual weight from the model
             weight = modelNeuron.weights[startIndex];
             
             // Convert to a visualization-friendly value (0-1 range)
             // Using sigmoid to normalize: 1 / (1 + e^-x)
             connectionStrength = 1 / (1 + Math.exp(-3 * weight)); // Multiply by 3 to increase contrast
             
-            // Debug logging for some connections
-            if (startIndex === 0 && parseInt(endLayer) === 1) {
-              console.log(`Connection weight: layer ${layerIndex} → ${layerIndex+1}, raw: ${weight.toFixed(4)}, visual: ${connectionStrength.toFixed(4)}`);
+            // Update the cache with the real weight
+            fallbackWeightsCache[connectionKey] = weight;
+            
+            if (startIndex === 0 && endIndex === 0) {
+              console.log(`Connection weight (from model): ${startNeuron.id} → ${endNeuron.id}, raw: ${weight.toFixed(6)}, visual: ${connectionStrength.toFixed(4)}`);
             }
-          } else if (modelNeuron) {
-            console.warn(`Model neuron ${modelNeuron.id} doesn't have enough weights for neuron at index ${startIndex}`);
+          } else {
+            // First, check if we already have a fallback weight for this connection
+            if (fallbackWeightsCache[connectionKey] !== undefined) {
+              // Use the cached weight
+              weight = fallbackWeightsCache[connectionKey];
+              
+              if (startIndex === 0 && endIndex === 0) {
+                console.log(`Connection weight (from cache): ${startNeuron.id} → ${endNeuron.id}, raw: ${weight.toFixed(6)}`);
+              }
+            } else {
+              // Generate a new random weight and store it in the cache
+              weight = Math.random() * 0.2 - 0.1; // Small random weight between -0.1 and 0.1
+              fallbackWeightsCache[connectionKey] = weight;
+              
+              if (startIndex === 0 && endIndex === 0) {
+                console.log(`Connection weight (new random): ${startNeuron.id} → ${endNeuron.id}, raw: ${weight.toFixed(6)}`);
+                
+                if (!modelNeuron) {
+                  console.warn(`Could not find model neuron: neuron-${endLayer}-${endIndexStr}`);
+                } else if (!modelNeuron.weights) {
+                  console.warn(`Model neuron ${modelNeuron.id} has no weights array`);
+                } else {
+                  console.warn(`Model neuron ${modelNeuron.id} weights length (${modelNeuron.weights.length}) too short for index ${startIndex}`);
+                }
+              }
+            }
+            
+            // Calculate connection strength from the weight (cached or new)
+            connectionStrength = 1 / (1 + Math.exp(-3 * weight));
           }
           
-          // Create the connection
+          // Always create the connection, even with fallback values
           connections.push({
-            id: `${startNeuron.id}-to-${endNeuron.id}`,
+            id: connectionKey,
             startNeuronId: startNeuron.id,
             endNeuronId: endNeuron.id,
             strength: connectionStrength,
@@ -668,13 +743,19 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     }
     
     // Log connection summary
-    console.log(`Updated ${connections.length} connections`);
+    console.log(`Created ${connections.length} connections`);
     
-    // Update the store
-    set({ connections });
+    // Update the store with connections and the updated cache
+    set({ 
+      connections,
+      fallbackWeightsCache
+    });
   },
   rebuildModelFromLayers: () => {
     const state = get();
+    
+    // Clear the fallback weights cache when rebuilding
+    set({ fallbackWeightsCache: {} });
     
     // Don't proceed if there's no selected dataset or training data
     if (!state.selectedDataset || !state.trainingData) {

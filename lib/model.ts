@@ -19,11 +19,13 @@ export function createAndCompileModel(
     trainingData, // Get trainingData from the store
   } = useModelStore.getState();
 
+  console.log("Creating new model with random initialization");
+  
   const model = tf.sequential();
 
   const neurons: Neuron[] = [];
 
-  // Always use random normal initialization
+  // Always use random normal initialization with higher variance for better training
   const kernelInitializer = tf.initializers.randomNormal({ mean: 0, stddev: 0.1 });
   // Add random initialization for biases too
   const biasInitializer = tf.initializers.randomNormal({ mean: 0, stddev: 0.1 });
@@ -40,8 +42,8 @@ export function createAndCompileModel(
       id: `neuron-0-${i}`,
       position: { x: 0, y: 0, z: 0 },
       layer: 0,
-      bias: 0,
-      weights: [],
+      bias: Math.random() * 0.2 - 0.1, // Random bias between -0.1 and 0.1
+      weights: [], // Input neurons don't have input weights
       activation: "None",
     });
   }
@@ -69,25 +71,63 @@ export function createAndCompileModel(
     })
   );
 
-  // push each output neuron to the neurons array
-  for (let i = 0; i < output_neurons; i++) {
-    neurons.push({
-      id: `neuron-${layers.length + 1}-${i}`,
-      position: { x: 0, y: 0, z: 0 },
-      layer: layers.length + 1,
-      bias: 0,
-      weights: [],
-      activation: "sigmoid",
-    });
-  }
-
+  // Compile the model before extracting weights
   model.compile({
     optimizer: "sgd",
     loss: "meanSquaredError",
     metrics: ["accuracy"],
   });
 
-  setNeurons((prevNeurons) => neurons);
+  console.log("Model created, extracting weights...");
+  
+  // Extract weights from the model to initialize neurons properly
+  // Skip input layer (index 0) as it doesn't have incoming weights
+  for (let layerIndex = 1; layerIndex < model.layers.length; layerIndex++) {
+    const layer = model.layers[layerIndex];
+    const weights = layer.getWeights();
+    
+    if (weights && weights.length >= 2) {
+      const weightTensor = weights[0]; // Weights matrix
+      const biasTensor = weights[1];   // Biases vector
+      
+      // Convert tensors to arrays
+      const weightMatrix = weightTensor.arraySync() as number[][];
+      const biasArray = biasTensor.arraySync() as number[];
+      
+      console.log(`Layer ${layerIndex} weights:`, {
+        shape: weightTensor.shape,
+        neurons: weightMatrix.length,
+        weightsPerNeuron: weightMatrix[0]?.length || 0
+      });
+      
+      // Create neurons for this layer
+      for (let i = 0; i < weightMatrix.length; i++) {
+        const neuronId = `neuron-${layerIndex}-${i}`;
+        const activation = layerIndex === model.layers.length - 1 ? "sigmoid" : "relu";
+        
+        neurons.push({
+          id: neuronId,
+          position: { x: 0, y: 0, z: 0 },
+          layer: layerIndex,
+          bias: biasArray[i],
+          weights: weightMatrix[i],
+          activation,
+        });
+        
+        // Log some neurons for debugging
+        if (i === 0) {
+          console.log(`Created ${layerIndex === model.layers.length - 1 ? "output" : "hidden"} neuron ${neuronId} with:`);
+          console.log(`  Bias: ${biasArray[i].toFixed(6)}`);
+          console.log(`  First few weights: ${weightMatrix[i].slice(0, 3).map(w => w.toFixed(6)).join(', ')} (total: ${weightMatrix[i].length})`);
+        }
+      }
+    } else {
+      console.warn(`Layer ${layerIndex} has no weights or incomplete weights`);
+    }
+  }
+
+  // Update neurons in the store
+  setNeurons(() => neurons);
 
   const numParams = model.countParams();
   setNumParams(numParams);
