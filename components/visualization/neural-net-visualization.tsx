@@ -27,10 +27,25 @@ export default function NeuralNetVisualization({ children }: { children: React.R
   return (
     <div className="fixed inset-0 z-0">
       <Canvas 
+        key={`camera-${cameraType}`}
         camera={{ 
-          position: [0, 0, 10], 
-          fov: 50,
-          type: cameraType === 'orthographic' ? 'OrthographicCamera' : 'PerspectiveCamera'
+          position: cameraType === 'orthographic' ? [5, 5, 15] : [0, 0, 10],
+          type: cameraType === 'orthographic' ? 'OrthographicCamera' : 'PerspectiveCamera',
+          ...(cameraType === 'orthographic' 
+            ? {
+                zoom: 3,
+                near: 0.1,
+                far: 1000,
+                left: -40,
+                right: 40,
+                top: 40,
+                bottom: -40
+              } 
+            : {
+                fov: 50,
+                near: 0.1,
+                far: 1000
+              })
         }}
         gl={{ 
           antialias: true, 
