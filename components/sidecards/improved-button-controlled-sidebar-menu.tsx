@@ -1,9 +1,11 @@
 'use client'
 
 import { useState, useEffect, useCallback, ReactNode } from 'react'
-import { Menu } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Menu } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import DatasetSelectionCard from './DatasetSelectionCard'
+import { cn } from '@/lib/utils'
+import { SceneControls } from '../scene-controls'
 
 interface SidebarMenuProps {
   children: ReactNode
@@ -14,13 +16,20 @@ export function ImprovedButtonControlledSidebarMenu({ children }: SidebarMenuPro
   const [isStylesLoaded, setIsStylesLoaded] = useState(false)
 
   const toggleMenu = useCallback(() => {
-    setIsOpen(prevState => !prevState)
-  }, [])
+    const newState = !isOpen;
+    setIsOpen(newState);
+    
+    // Dispatch custom event that the visualization component can listen for
+    const event = new CustomEvent('sidebar-toggle', { 
+      detail: { isOpen: newState } 
+    });
+    window.dispatchEvent(event);
+  }, [isOpen])
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && isOpen) {
-        setIsOpen(false)
+        toggleMenu();
       }
     }
 
@@ -28,11 +37,18 @@ export function ImprovedButtonControlledSidebarMenu({ children }: SidebarMenuPro
     return () => {
       document.removeEventListener('keydown', handleEscape)
     }
-  }, [isOpen])
+  }, [isOpen, toggleMenu])
 
   useEffect(() => {
     // Delay setting isStylesLoaded to ensure styles are applied
     const timer = setTimeout(() => setIsStylesLoaded(true), 50)
+    
+    // Dispatch initial sidebar state
+    const event = new CustomEvent('sidebar-toggle', { 
+      detail: { isOpen: true } 
+    });
+    window.dispatchEvent(event);
+    
     return () => clearTimeout(timer)
   }, [])
 
@@ -42,33 +58,42 @@ export function ImprovedButtonControlledSidebarMenu({ children }: SidebarMenuPro
       <Button
         variant="outline"
         size="icon"
-        className="fixed top-4 right-4 z-50 bg-[#28242c] border-none hover:bg-[#3a3540]"
+        className={cn(
+          "fixed right-4 top-4 z-50 h-8 w-8 shrink-0 rounded-full border border-zinc-800 bg-black/90 text-zinc-400 shadow-[0_0_15px_rgba(0,0,0,0.5)] backdrop-blur-sm hover:bg-black hover:text-zinc-300",
+          isOpen && "right-[352px]",
+        )}
         onClick={toggleMenu}
         aria-label={isOpen ? "Close menu" : "Open menu"}
       >
-        <Menu size={24} className="text-[#e0e0e0]" />
+        {isOpen ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
       </Button>
 
       {/* Sidebar */}
       <div
-        className={`fixed inset-y-4 right-4 w-80 bg-[#28242c] rounded-lg shadow-lg transition-transform duration-300 ease-in-out z-40 ${
-          isOpen ? 'translate-x-0' : `translate-x-[calc(100%+16px)]`
-        }`}
+        className={cn(
+          "fixed right-0 top-0 z-40 h-full w-[340px] transform border-l border-zinc-800 bg-black/90 backdrop-blur-sm transition-transform duration-300 ease-in-out",
+          isOpen ? "translate-x-0" : "translate-x-full"
+        )}
       >
-        <div className="p-4 h-full flex flex-col">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-white">Menu</h2>
+        <div className="p-4 pt-16 h-full flex flex-col">
+          <div className="flex items-center font-mono text-zinc-300 mb-4">
+            <Menu className="mr-2 h-4 w-4" />
+            NEURAL NETWORK CONTROLS
           </div>
           
           {/* Scrollable area for cards */}
           <div className={`flex-grow overflow-y-auto custom-scrollbar ${isStylesLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}>
-            <div className="space-y-4 pr-4">
+            <div className="space-y-4 pr-2">
               <DatasetSelectionCard />
               {children}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Scene controls */}
+      <SceneControls isSidebarOpen={isOpen} />
+      
       <ScrollbarStyles />
     </>
   )
@@ -76,29 +101,28 @@ export function ImprovedButtonControlledSidebarMenu({ children }: SidebarMenuPro
 
 function InfoCard({ title, content }: { title: string; content: string }) {
   return (
-    <div className="bg-card text-card-foreground rounded-lg p-4 shadow">
-      <h3 className="font-medium mb-2">{title}</h3>
-      <p className="text-sm">{content}</p>
+    <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 shadow">
+      <h3 className="font-medium text-zinc-300 mb-2">{title}</h3>
+      <p className="text-sm text-zinc-400">{content}</p>
     </div>
   )
 }
 
 const scrollbarStyles = `
-  
   .custom-scrollbar::-webkit-scrollbar {
     width: 8px;
   }
   .custom-scrollbar::-webkit-scrollbar-track {
-    background: #3a3540;
+    background: #1a1a1a;
     border-radius: 4px;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #4a4550;
+    background: #333;
     border-radius: 4px;
     transition: background 0.3s ease;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #5a5560;
+    background: #444;
   }
 `;
 

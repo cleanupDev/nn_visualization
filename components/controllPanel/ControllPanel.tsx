@@ -4,14 +4,11 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useModelStore } from '@/components/store';
 import * as tf from "@tensorflow/tfjs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Play, Pause, SkipForward, Clock, Zap } from "lucide-react";
 import { Slider } from "../ui/slider";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 const ControlPanel = () => {
   const {
@@ -75,10 +72,6 @@ const ControlPanel = () => {
 
   const handleDatasetChange = (value: string) => {
     createModelAndLoadData(value as 'xor' | 'sine' | 'mnist');
-  };
-
-  const manualForwardPass = async () => {
-    if (!model) return;
   };
 
   const startTraining = async (continueTraining: boolean = false) => {
@@ -163,124 +156,109 @@ const ControlPanel = () => {
       setCurrPhase("error");
     }
   };
+  
+  const stepForward = () => {
+    if (model) {
+      updateWeightsAndBiases(model);
+    }
+  };
 
   return (
-    <div className={`max-w-sm mx-auto p-5 rounded-lg ${isStylesLoaded ? 'bg-white/10 backdrop-blur-md' : ''}`}>
-      <h2 className="text-lg font-semibold mb-4 text-white">Neural Network Control</h2>
-      
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-200 mb-1">
-          Select Dataset
-        </label>
-        <Select onValueChange={handleDatasetChange} defaultValue={selectedDataset || 'xor'}>
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Select dataset" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="xor">XOR Problem</SelectItem>
-            <SelectItem value="sine">Sine Wave</SelectItem>
-            <SelectItem value="mnist">MNIST Digits</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-200 mb-1">
-          Number of Epochs
-        </label>
-        <div className="flex items-center gap-2">
-          <Slider
-            value={[numEpochs]}
-            min={10}
-            max={1000}
-            step={10}
-            onValueChange={(values: number[]) => setNumEpochs(values[0])}
-            disabled={is_training}
-            className="flex-grow"
-          />
-          <span className="ml-2 text-xs text-gray-300 min-w-[40px] text-right">{numEpochs}</span>
-        </div>
-      </div>
-      
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-200 mb-1">
-          Animation Speed
-        </label>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-300">Slow</span>
-          <Slider
-            value={[animationSpeed]}
-            min={1}
-            max={60}
-            step={1}
-            onValueChange={(values: number[]) => setAnimationSpeed(values[0])}
-            disabled={is_training}
-            className="flex-grow"
-          />
-          <span className="text-xs text-gray-300">Fast</span>
-          <span className="ml-2 text-xs text-gray-300">{animationSpeed} fps</span>
-        </div>
-      </div>
-      
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-2">
-          <Button
-            onClick={() => startTraining(false)}
-            disabled={is_training || !model}
-            className="w-full"
-            variant="default"
-          >
-            {is_training ? "Training..." : "New Training"}
-          </Button>
-          
-          <Button
-            onClick={() => startTraining(true)}
-            disabled={is_training || !model || totalEpochs === 0}
-            className="w-full"
-            variant="secondary"
-          >
-            Continue Training
-          </Button>
-        </div>
+    <div className={cn(
+      "z-10 rounded-md border border-zinc-800 bg-black/90 backdrop-blur-sm transition-opacity duration-300",
+      isStylesLoaded ? "opacity-100" : "opacity-0"
+    )}>
+      <Card className="border-zinc-800 bg-transparent shadow-none">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center font-mono text-sm font-medium text-zinc-300">
+            <Zap className="mr-2 h-4 w-4" />
+            TRAINING.CONTROL
+          </CardTitle>
+        </CardHeader>
         
-        <div className="grid grid-cols-2 gap-2 text-sm text-white">
-          <div>Epochs: {curr_epoch} / {totalEpochs + numEpochs}</div>
-          <div>Loss: {typeof curr_loss === 'number' ? curr_loss.toFixed(4) : curr_loss}</div>
-          <div>Accuracy: {typeof curr_acc === 'number' ? (curr_acc * 100).toFixed(2) + '%' : curr_acc}</div>
-          <div>Status: {is_training ? "Training" : curr_phase}</div>
-        </div>
-      </div>
-      
-      {!isStylesLoaded && <ControlPanelStyles />}
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="font-mono text-xs text-zinc-500">EPOCHS</Label>
+              <span className="font-mono text-xs text-zinc-400">{numEpochs}</span>
+            </div>
+            <Slider
+              value={[numEpochs]}
+              min={10}
+              max={500}
+              step={10}
+              disabled={is_training}
+              onValueChange={(values) => setNumEpochs(values[0])}
+              className="[&_[role=slider]]:h-4 [&_[role=slider]]:w-4 [&_[role=slider]]:border-zinc-800 [&_[role=slider]]:bg-zinc-900"
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="font-mono text-xs text-zinc-500">ANIMATION.SPEED</Label>
+              <span className="font-mono text-xs text-zinc-400">{animationSpeed} FPS</span>
+            </div>
+            <Slider
+              value={[animationSpeed]}
+              min={1}
+              max={60}
+              step={1}
+              disabled={is_training}
+              onValueChange={(values) => setAnimationSpeed(values[0])}
+              className="[&_[role=slider]]:h-4 [&_[role=slider]]:w-4 [&_[role=slider]]:border-zinc-800 [&_[role=slider]]:bg-zinc-900"
+            />
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => startTraining(false)}
+              disabled={is_training || !model}
+              className="flex-1 h-10 border-zinc-800 bg-black/50 font-mono text-xs text-zinc-400 hover:bg-zinc-900 hover:text-zinc-300"
+            >
+              {is_training ? <Pause className="h-4 w-4 mr-2" /> : <Play className="h-4 w-4 mr-2" />}
+              {is_training ? "PAUSE" : "TRAIN"}
+            </Button>
+            
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={stepForward}
+              disabled={is_training || !model}
+              className="flex-1 h-10 border-zinc-800 bg-black/50 font-mono text-xs text-zinc-400 hover:bg-zinc-900 hover:text-zinc-300"
+            >
+              <SkipForward className="h-4 w-4 mr-2" />
+              STEP
+            </Button>
+          </div>
+          
+          <div className="space-y-2 rounded-lg border border-zinc-800 bg-black/50 p-3 font-mono text-xs">
+            <div className="flex justify-between">
+              <span className="text-zinc-500">EPOCH.CURRENT</span>
+              <span className="text-zinc-300">{curr_epoch}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-zinc-500">LOSS.CURRENT</span>
+              <span className="text-emerald-400">
+                {typeof curr_loss === 'number' ? curr_loss.toFixed(4) : curr_loss}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-zinc-500">ACCURACY</span>
+              <span className="text-emerald-400">
+                {typeof curr_acc === 'number' ? (curr_acc * 100).toFixed(2) + '%' : curr_acc}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-zinc-500">STATUS</span>
+              <span className="text-zinc-300">{is_training ? "TRAINING" : curr_phase.toUpperCase()}</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
-
-const controlPanelStyles = `
-  .custom-scrollbar {
-    scrollbar-width: thin;
-    scrollbar-color: #4a4550 #3a3540;
-    transition: scrollbar-color 0.3s ease;
-  }
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 8px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: #3a3540;
-    border-radius: 4px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #4a4550;
-    border-radius: 4px;
-    transition: background 0.3s ease;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #5a5560;
-  }
-`;
-
-function ControlPanelStyles() {
-  return <style jsx global>{controlPanelStyles}</style>;
-}
 
 export default ControlPanel;

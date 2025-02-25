@@ -24,20 +24,22 @@ function ErrorFallback({ error }: FallbackProps) {
 export default function MainPage() {
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
-      <TutorialPopupComponent />
-      <ImprovedButtonControlledSidebarMenu>
-        <LayerControlCard />
-        <LayerInfoCard />
-      </ImprovedButtonControlledSidebarMenu>
-      <NeuralNetVisualization>
-        <div className='absolute top-0 left-5'>
-          <ControllPanel />
+      <main className="relative h-screen w-full bg-black">
+        <TutorialPopupComponent />
+        <ImprovedButtonControlledSidebarMenu>
+          <LayerControlCard />
+          <LayerInfoCard />
+        </ImprovedButtonControlledSidebarMenu>
+        <NeuralNetVisualization>
+          <div className='absolute top-5 left-5'>
+            <ControllPanel />
+          </div>
+        </NeuralNetVisualization>
+        <div className="fixed bottom-4 left-4 z-50 flex space-x-4">
+          <GitHubLink repoUrl="https://github.com/cleanupDev/nn_visualization" />
+          <FeedbackButtonComponent />
         </div>
-      </NeuralNetVisualization>
-      <div className="fixed bottom-4 left-4 z-50 flex space-x-4">
-        <GitHubLink repoUrl="https://github.com/cleanupDev/nn_visualization" />
-        <FeedbackButtonComponent />
-      </div>
+      </main>
     </ErrorBoundary>
   )
 }

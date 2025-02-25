@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useModelStore } from "@/components/store";
+import { Layers } from "lucide-react";
 
 import {
   Card,
@@ -13,6 +14,8 @@ import {
 } from "@/components/ui/card";
 
 import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
+import { Label } from "@/components/ui/label";
 
 const LayerControlCard = () => {
   const {
@@ -48,92 +51,83 @@ const LayerControlCard = () => {
   };
 
   const handleDeleteLayer = () => {
-    const newLayers = layers.slice(0, layers.length - 1);
-    updateStore(newLayers);
+    if (layers.length > 1) {
+      const newLayers = [...layers];
+      newLayers.pop();
+      updateStore(newLayers);
+    }
   };
 
   const handleAddNeuron = (index: number) => {
-    if (layers[index].neurons >= 10) return;
-    const newLayers = layers.map((layer, idx) =>
-      idx === index ? { ...layer, neurons: layer.neurons + 1 } : layer
-    );
-    updateStore(newLayers);
+    if (layers[index].neurons < 8) {
+      const newLayers = [...layers];
+      newLayers[index].neurons += 1;
+      updateStore(newLayers);
+    }
   };
 
   const handleDeleteNeuron = (index: number) => {
-    const newLayers = layers.map((layer, idx) =>
-      idx === index
-        ? { ...layer, neurons: Math.max(1, layer.neurons - 1) }
-        : layer
-    );
-    updateStore(newLayers);
+    if (layers[index].neurons > 1) {
+      const newLayers = [...layers];
+      newLayers[index].neurons -= 1;
+      updateStore(newLayers);
+    }
+  };
+
+  const handleNeuronChange = (index: number, value: number[]) => {
+    if (value[0] >= 1 && value[0] <= 8) {
+      const newLayers = [...layers];
+      newLayers[index].neurons = value[0];
+      updateStore(newLayers);
+    }
   };
 
   return (
-    <div className="h-full overflow-auto">
-      <Card className="h-full bg-[#31303b] border-none text-white">
-        <CardHeader>
-          <CardTitle>Layer Control</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-2 text-center mb-5 text-black">
-            <Button
-              variant="outline"
-              id="add-layer-button"
-              onClick={handleAddLayer}
+    <Card className="border-zinc-800 bg-zinc-900/50">
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center font-mono text-sm font-medium text-zinc-300">
+          <Layers className="mr-2 h-4 w-4" />
+          LAYER.CONTROL
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Button 
+            className="flex-1 bg-zinc-800 font-mono text-xs text-zinc-300 hover:bg-zinc-700"
+            onClick={handleAddLayer} 
+            disabled={is_training || layers.length >= 5}
+          >
+            ADD.LAYER()
+          </Button>
+          <Button
+            className="flex-1 border-zinc-800 bg-black/50 font-mono text-xs text-zinc-400 hover:bg-zinc-900 hover:text-zinc-300"
+            variant="outline"
+            onClick={handleDeleteLayer}
+            disabled={is_training || layers.length <= 1}
+          >
+            DEL.LAYER()
+          </Button>
+        </div>
+
+        {layers.map((layer, index) => (
+          <div key={layer.name} className="space-y-2 rounded-lg border border-zinc-800 bg-black/50 p-3">
+            <div className="flex items-center justify-between">
+              <Label className="font-mono text-xs text-zinc-500">{layer.name}</Label>
+              <span className="font-mono text-xs text-zinc-400">{layer.neurons}</span>
+            </div>
+            <Slider
+              value={[layer.neurons]}
+              min={1}
+              max={8}
+              step={1}
               disabled={is_training}
-            >
-              Add
-            </Button>
-            <Button
-              variant="outline"
-              id="delete-layer-button"
-              onClick={handleDeleteLayer}
-              disabled={is_training}
-            >
-              Del
-            </Button>
+              onValueChange={(value) => handleNeuronChange(index, value)}
+              className="[&_[role=slider]]:h-4 [&_[role=slider]]:w-4 [&_[role=slider]]:border-zinc-800 [&_[role=slider]]:bg-zinc-900"
+            />
           </div>
-          <CardDescription className="text-center mb-2">
-            Layer | Units
-          </CardDescription>
-          <div id="layer-list" className="overflow-auto h-48 text-center">
-            {layers.map((layer, index) => (
-              <div
-                key={index}
-                className="layer-card grid grid-cols-2 mb-2 items-center p-2"
-              >
-                <p className="layer-name">
-                  {layer.name} | {layer.neurons}
-                </p>
-                <div className="button-group flex justify-end">
-                  <button
-                    className="pill-button plus"
-                    onClick={() => handleAddNeuron(index)}
-                    disabled={is_training}
-                  >
-                    +
-                  </button>
-                  <button
-                    className="pill-button minus"
-                    onClick={() => handleDeleteNeuron(index)}
-                    disabled={is_training}
-                  >
-                    -
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-        <CardFooter>
-          <CardDescription>
-            Layer Information
-            WARNING: large number of neurons may cause performance issues.
-          </CardDescription>
-        </CardFooter>
-      </Card>
-    </div>
+        ))}
+      </CardContent>
+    </Card>
   );
 };
 

@@ -90,6 +90,9 @@ type ModelStore = ModelInfo & ModelActions & {
   connections: Connection[];
   // Add a cache for fallback weights to prevent re-randomizing
   fallbackWeightsCache: Record<string, number>;
+  // Camera settings
+  cameraType: "perspective" | "orthographic";
+  setCameraType: (type: "perspective" | "orthographic") => void;
   // Visualization actions
   initializeNetwork: () => void;
   recalculatePositions: () => void;
@@ -119,6 +122,9 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   connections: [],
   // Add cache for fallback weights
   fallbackWeightsCache: {},
+  // Add camera type state
+  cameraType: "perspective",
+  setCameraType: (type) => set({ cameraType: type }),
 
   setModel: (model: tf.LayersModel | null) => set({ model }),
   setNumNeurons: (num: number) => set({ num_neurons: num }),

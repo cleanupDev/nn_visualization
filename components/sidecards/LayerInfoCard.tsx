@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useModelStore } from "@/components/store";
+import { Info } from "lucide-react";
 
 import {
   Card,
@@ -23,53 +24,49 @@ const LayerInfoCard = () => {
   }));
 
   return (
-    <Card className="h-full bg-[#31303b] border-none text-white">
-      <CardHeader>
-        <CardTitle>Model Info</CardTitle>
+    <Card className="border-zinc-800 bg-zinc-900/50">
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center font-mono text-sm font-medium text-zinc-300">
+          <Info className="mr-2 h-4 w-4" />
+          MODEL.INFO
+        </CardTitle>
       </CardHeader>
       <CardContent>
-        <table className="model-info-table">
-          <tbody>
-            <tr>
-              <td>Neurons:</td>
-              <td>{modelData.num_neurons}</td>
-            </tr>
-            <tr>
-              <td>Params:</td>
-              <td>{modelData.num_params}</td>
-            </tr>
-            <tr>
-              <td>Loss:</td>
-              <td>
-                {typeof modelData.curr_loss === "number"
-                  ? modelData.curr_loss.toFixed(4)
-                  : modelData.curr_loss}
-              </td>
-            </tr>
-            <tr>
-              <td>Accuracy:</td>
-              <td>
-                {typeof modelData.curr_acc === "number"
-                  ? modelData.curr_acc.toFixed(4)
-                  : modelData.curr_acc}
-              </td>
-            </tr>
-            <tr>
-              <td>Phase:</td>
-              <td>{modelData.curr_phase}</td>
-            </tr>
-            <tr>
-              <td>Epoch:</td>
-              <td>{modelData.curr_epoch}</td>
-            </tr>
-          </tbody>
-        </table>
+        <div className="space-y-2 rounded-lg border border-zinc-800 bg-black/50 p-3 font-mono text-xs">
+          <div className="flex justify-between">
+            <span className="text-zinc-500">NEURONS.TOTAL</span>
+            <span className="text-zinc-300">{modelData.num_neurons}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-zinc-500">PARAMETERS.TOTAL</span>
+            <span className="text-zinc-300">{modelData.num_params}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-zinc-500">PHASE.CURRENT</span>
+            <span className="text-zinc-300">{modelData.curr_phase}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-zinc-500">EPOCH.CURRENT</span>
+            <span className="text-zinc-300">{modelData.curr_epoch}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-zinc-500">LOSS.CURRENT</span>
+            <span className="text-emerald-400">
+              {typeof modelData.curr_loss === "number"
+                ? modelData.curr_loss.toFixed(4)
+                : modelData.curr_loss}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-zinc-500">ACCURACY</span>
+            <span className="text-emerald-400">
+              {typeof modelData.curr_acc === "number"
+                ? `${(modelData.curr_acc * 100).toFixed(2)}%`
+                : modelData.curr_acc}
+            </span>
+          </div>
+        </div>
       </CardContent>
-      <CardFooter>
-        <CardDescription>
-          Dynamic model information updated in real-time
-        </CardDescription>
-      </CardFooter>
     </Card>
   );
 };

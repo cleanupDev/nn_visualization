@@ -2,7 +2,11 @@
 
 import React from "react";
 import { useModelStore } from "@/components/store";
+import { Settings } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Button } from "@/components/ui/button";
 import * as tf from "@tensorflow/tfjs";
 import { Scatter, Line } from 'react-chartjs-2';
 import {
@@ -29,26 +33,56 @@ ChartJS.register(
 );
 
 const DatasetSelectionCard = () => {
-  const { selectedDataset, trainingData } = useModelStore();
+  const { 
+    selectedDataset,
+    trainingData,
+    createModelAndLoadData
+  } = useModelStore();
 
-  // Helper function to get dataset display name
-  const getDatasetDisplayName = (dataset: string | null) => {
-    switch(dataset) {
-      case 'xor': return 'XOR Problem';
-      case 'sine': return 'Sine Wave Function';
-      case 'mnist': return 'MNIST Handwritten Digits';
-      default: return 'No Dataset Selected';
-    }
+  const handleDatasetChange = (value: string) => {
+    createModelAndLoadData(value as 'xor' | 'sine' | 'mnist');
   };
 
   return (
-    <Card className="bg-[#31303b] border-none text-white">
-      <CardHeader>
-        <CardTitle>Dataset Information</CardTitle>
-        <CardDescription>Currently using: <span className="font-bold text-white">{getDatasetDisplayName(selectedDataset)}</span></CardDescription>
+    <Card className="border-zinc-800 bg-zinc-900/50">
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center font-mono text-sm font-medium text-zinc-300">
+          <Settings className="mr-2 h-4 w-4" />
+          DATASET.CONFIG
+        </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <DataPreview />
+      <CardContent>
+        <RadioGroup 
+          defaultValue={selectedDataset || 'xor'} 
+          className="grid grid-cols-2 gap-2"
+          onValueChange={handleDatasetChange}
+        >
+          <Label
+            htmlFor="xor"
+            className="flex cursor-pointer items-center justify-center rounded-md border border-zinc-800 bg-black/50 p-4 font-mono text-sm text-zinc-400 hover:bg-zinc-900 hover:text-zinc-300 [&:has([data-state=checked])]:border-zinc-700 [&:has([data-state=checked])]:bg-zinc-900 [&:has([data-state=checked])]:text-zinc-300"
+          >
+            <RadioGroupItem value="xor" id="xor" className="sr-only" />
+            XOR
+          </Label>
+          <Label
+            htmlFor="sine"
+            className="flex cursor-pointer items-center justify-center rounded-md border border-zinc-800 bg-black/50 p-4 font-mono text-sm text-zinc-400 hover:bg-zinc-900 hover:text-zinc-300 [&:has([data-state=checked])]:border-zinc-700 [&:has([data-state=checked])]:bg-zinc-900 [&:has([data-state=checked])]:text-zinc-300"
+          >
+            <RadioGroupItem value="sine" id="sine" className="sr-only" />
+            SINE
+          </Label>
+        </RadioGroup>
+        <Button
+          className="mt-2 w-full border-zinc-800 bg-black/50 font-mono text-xs text-zinc-400 hover:bg-zinc-900 hover:text-zinc-300"
+          variant="outline"
+          onClick={() => handleDatasetChange('mnist')}
+        >
+          LOAD MNIST.DATA
+        </Button>
+        
+        <div className="mt-4 space-y-2 rounded-lg border border-zinc-800 bg-black/50 p-3">
+          <DataPreview />
+        </div>
       </CardContent>
     </Card>
   );
@@ -58,7 +92,7 @@ const DataPreview = () => {
     const { selectedDataset, trainingData, inputShape } = useModelStore();
 
     if (!selectedDataset) {
-        return <CardDescription>Select a dataset to preview.</CardDescription>;
+        return <div className="text-xs text-zinc-500">Select a dataset to preview</div>;
     }
 
     let inputDim = inputShape.join(" x ");
@@ -67,16 +101,23 @@ const DataPreview = () => {
         outputDim = "10 (one-hot encoded)";
     }
 
-
     return (
         <div className="space-y-2">
-            <CardDescription>
-                <strong>Input Dimensions:</strong> {inputDim} <br />
-                <strong>Output Dimensions:</strong> {outputDim}
-            </CardDescription>
-            {selectedDataset === 'xor' && <XORPreview />}
-            {selectedDataset === 'sine' && <SinePreview />}
-            {selectedDataset === 'mnist' && <MNISTPreview trainingData={trainingData} />}
+            <div className="font-mono text-xs">
+                <div className="flex justify-between text-zinc-500">
+                  <span>INPUT.DIM</span>
+                  <span className="text-zinc-300">{inputDim}</span>
+                </div>
+                <div className="flex justify-between text-zinc-500">
+                  <span>OUTPUT.DIM</span>
+                  <span className="text-zinc-300">{outputDim}</span>
+                </div>
+            </div>
+            <div className="mt-3">
+              {selectedDataset === 'xor' && <XORPreview />}
+              {selectedDataset === 'sine' && <SinePreview />}
+              {selectedDataset === 'mnist' && <MNISTPreview trainingData={trainingData} />}
+            </div>
         </div>
     );
 };
@@ -190,7 +231,7 @@ const SinePreview = () => {
 };
 
 const MNISTPreview = ({ trainingData }: { trainingData: { xs: tf.Tensor; ys: tf.Tensor } | null }) => {
-    if (!trainingData) return <p>Loading MNIST data...</p>;
+    if (!trainingData) return <p className="font-mono text-xs text-zinc-500">MNIST.DATA.LOADING...</p>;
 
     const canvasRefs = React.useRef<(HTMLCanvasElement | null)[]>([]);
 
@@ -223,15 +264,17 @@ const MNISTPreview = ({ trainingData }: { trainingData: { xs: tf.Tensor; ys: tf.
     }, [trainingData]);
 
     return (
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 justify-center">
             {[...Array(5)].map((_, i) => (
-                <canvas
-                    key={i}
-                    ref={(el) => (canvasRefs.current[i] = el)}
-                    width={28}
-                    height={28}
-                    className="border border-gray-600"
-                ></canvas>
+                <div key={i} className="relative group">
+                    <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 to-blue-500 opacity-20 group-hover:opacity-50 rounded-sm blur-sm transition duration-200"></div>
+                    <canvas
+                        ref={(el) => (canvasRefs.current[i] = el)}
+                        width={28}
+                        height={28}
+                        className="relative w-12 h-12 bg-black rounded-sm border border-zinc-800"
+                    ></canvas>
+                </div>
             ))}
         </div>
     );
