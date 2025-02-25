@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useModelStore } from '@/components/store';
 import * as tf from "@tensorflow/tfjs";
-import { Play, Pause, SkipForward, Clock, Zap } from "lucide-react";
+import { Play, Pause, SkipForward, Clock, Zap, RotateCcw } from "lucide-react";
 import { Slider } from "../ui/slider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -36,6 +36,8 @@ const ControlPanel = () => {
   const [numEpochs, setNumEpochs] = useState(50); // Default number of epochs
   // Track total epochs across multiple training sessions
   const [totalEpochs, setTotalEpochs] = useState(0);
+  // Track if model has been trained before
+  const [hasBeenTrained, setHasBeenTrained] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsStylesLoaded(true), 50);
@@ -62,6 +64,7 @@ const ControlPanel = () => {
   useEffect(() => {
     if (curr_epoch > 0) {
       setTotalEpochs(curr_epoch);
+      setHasBeenTrained(true);
     }
   }, [curr_epoch]);
 
@@ -163,20 +166,36 @@ const ControlPanel = () => {
     }
   };
 
+  const resetModel = () => {
+    // Only reset if model exists and is not currently training
+    if (model && !is_training) {
+      // Recreate model for current dataset
+      if (selectedDataset) {
+        createModelAndLoadData(selectedDataset);
+        setTotalEpochs(0);
+        setCurrEpoch(0);
+        setCurrAcc("N/A");
+        setCurrLoss("N/A");
+        setCurrPhase("ready");
+        setHasBeenTrained(false);
+      }
+    }
+  };
+
   return (
     <div className={cn(
-      "z-10 rounded-md border border-zinc-800 bg-black/90 backdrop-blur-sm transition-opacity duration-300",
+      "z-10 rounded-md border border-zinc-800 bg-black/90 backdrop-blur-sm transition-opacity duration-300 min-w-[320px]",
       isStylesLoaded ? "opacity-100" : "opacity-0"
     )}>
       <Card className="border-zinc-800 bg-transparent shadow-none">
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-2 px-5">
           <CardTitle className="flex items-center font-mono text-sm font-medium text-zinc-300">
             <Zap className="mr-2 h-4 w-4" />
             TRAINING.CONTROL
           </CardTitle>
         </CardHeader>
         
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 px-5">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="font-mono text-xs text-zinc-500">EPOCHS</Label>
@@ -213,23 +232,23 @@ const ControlPanel = () => {
             <Button
               variant="outline"
               size="icon"
-              onClick={() => startTraining(false)}
+              onClick={() => startTraining(hasBeenTrained)}
               disabled={is_training || !model}
               className="flex-1 h-10 border-zinc-800 bg-black/50 font-mono text-xs text-zinc-400 hover:bg-zinc-900 hover:text-zinc-300"
             >
               {is_training ? <Pause className="h-4 w-4 mr-2" /> : <Play className="h-4 w-4 mr-2" />}
-              {is_training ? "PAUSE" : "TRAIN"}
+              {is_training ? "PAUSE" : hasBeenTrained ? "CONTINUE" : "TRAIN"}
             </Button>
             
             <Button
               variant="outline"
               size="icon"
-              onClick={stepForward}
-              disabled={is_training || !model}
-              className="flex-1 h-10 border-zinc-800 bg-black/50 font-mono text-xs text-zinc-400 hover:bg-zinc-900 hover:text-zinc-300"
+              onClick={resetModel}
+              disabled={is_training || !hasBeenTrained}
+              className="flex-1 h-10 border-zinc-800 bg-black/50 font-mono text-xs text-zinc-400 hover:bg-zinc-900 hover:text-zinc-300 disabled:opacity-40"
             >
-              <SkipForward className="h-4 w-4 mr-2" />
-              STEP
+              <RotateCcw className="h-4 w-4 mr-2" />
+              RESET
             </Button>
           </div>
           
