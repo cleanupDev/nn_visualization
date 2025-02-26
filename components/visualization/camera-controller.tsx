@@ -5,6 +5,7 @@ import { useSpring } from '@react-spring/three'
 import { OrbitControls } from '@react-three/drei'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { useModelStore } from '@/components/store'
+import { MOUSE } from 'three'
 
 export default function CameraController() {
   const { camera, gl, invalidate } = useThree()
@@ -147,7 +148,13 @@ export default function CameraController() {
         zoomSpeed: 0.5,
         rotateSpeed: 0.5,
         minZoom: 1,
-        maxZoom: 20
+        maxZoom: 200,
+        // Configure mouse buttons to allow scrollwheel zooming without pressing a mouse button
+        mouseButtons: {
+          LEFT: MOUSE.ROTATE,
+          MIDDLE: MOUSE.DOLLY,
+          RIGHT: MOUSE.PAN
+        }
       };
     } else {
       return {
@@ -158,7 +165,13 @@ export default function CameraController() {
         zoomSpeed: 0.8,
         rotateSpeed: 0.8,
         minDistance: 3,
-        maxDistance: 20
+        maxDistance: 200,
+        // Configure mouse buttons to allow scrollwheel zooming without pressing a mouse button
+        mouseButtons: {
+          LEFT: MOUSE.ROTATE,
+          MIDDLE: MOUSE.DOLLY,
+          RIGHT: MOUSE.PAN
+        }
       };
     }
   }, [cameraType]);
