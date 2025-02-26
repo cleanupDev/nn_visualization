@@ -88,18 +88,22 @@ const ControlPanel = () => {
     }
 
     try {
-      // Set up animation interval for smoother visual updates
+      // Clean up previous animation interval if it exists
       if (animationInterval) {
         clearInterval(animationInterval);
       }
       
-      // Use higher animation speed for better visualization
-      // This will update the visual weights more frequently than the actual training steps
+      // Determine update frequency based on dataset
+      // Less frequent updates for complex datasets to improve performance
+      const updateFrequency = selectedDataset === 'mnist' ? 
+        Math.max(5, animationSpeed) : // Update less frequently for MNIST
+        1000 / animationSpeed; // Regular update frequency for simpler datasets
+      
       const intervalId = setInterval(() => {
         if (model) {
           updateWeightsAndBiases(model);
         }
-      }, 1000 / animationSpeed); // Update visuals X times per second
+      }, updateFrequency);
       
       setAnimationInterval(intervalId);
       
@@ -109,28 +113,47 @@ const ControlPanel = () => {
       
       console.log(`Training from epoch ${startEpoch} for ${epochsToTrain} epochs`);
     
+      // Determine optimal batch size based on dataset
+      const batchSize = selectedDataset === 'mnist' ? 128 : 32;
+      
+      // Enable tensor memory cleanup during training without using tidy
+      tf.engine().startScope(); // Start a scope to track tensors
+      
       const history = await model.fit(trainingData.xs, trainingData.ys, {
         epochs: epochsToTrain,
-        batchSize: 32,
+        batchSize: batchSize,
         callbacks: {
           onEpochBegin: async (epoch: number) => {
             // Update epoch counter with offset for continuation
             const currentEpoch = startEpoch + epoch;
             setCurrEpoch(currentEpoch + 1); // +1 because epoch is 0-indexed in the callback
+            
+            // Clean up tensors less frequently for better performance
+            if (epoch % 5 === 0) {
+              // Dispose unused tensors periodically without disrupting training
+              tf.engine().endScope();
+              tf.engine().startScope();
+            }
           },
           onEpochEnd: async (epoch: number, logs: any) => {
             const currentEpoch = startEpoch + epoch;
-            console.log(
-              `Epoch ${currentEpoch + 1}: Loss = ${logs.loss}, Accuracy = ${logs.acc || 'N/A'}`
-            );
+            
+            // Only log every few epochs for better performance
+            if (epoch % (selectedDataset === 'mnist' ? 5 : 1) === 0) {
+              console.log(
+                `Epoch ${currentEpoch + 1}: Loss = ${logs.loss}, Accuracy = ${logs.acc || 'N/A'}`
+              );
+            }
+            
             // Update state with the latest accuracy and loss after each epoch
             setCurrAcc(logs.acc || 0);
             setCurrLoss(logs.loss || 0);
-            // Epoch counter already updated in onEpochBegin
-            // Weights will be updated by the animation interval
           },
         },
       });
+      
+      // End the scope after training completes
+      tf.engine().endScope();
       
       // Clean up the animation interval
       if (animationInterval) {

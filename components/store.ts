@@ -190,6 +190,13 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     };
   }),
   loadDataset: async (datasetName) => {
+    // Dispose any existing training data tensors to free up memory
+    const { trainingData } = get();
+    if (trainingData) {
+      if (trainingData.xs) trainingData.xs.dispose();
+      if (trainingData.ys) trainingData.ys.dispose();
+    }
+    
     switch (datasetName) {
       case 'xor':
         const xorInputs = tf.tensor2d([
@@ -222,10 +229,10 @@ export const useModelStore = create<ModelStore>((set, get) => ({
           const mnist = new MnistData();
           await mnist.load();
 
-          // Get the entire training set as a single batch
-          const { xs: mnistInputs, labels: mnistLabels } = mnist.nextTrainBatch(
-            NUM_TRAIN_ELEMENTS
-          );
+          // Use a smaller subset of MNIST for better performance
+          // 5000 samples is enough for visualization and still trains well
+          const batchSize = 5000; 
+          const { xs: mnistInputs, labels: mnistLabels } = mnist.nextTrainBatch(batchSize);
 
           set({
             trainingData: { xs: mnistInputs, ys: mnistLabels },
@@ -286,8 +293,11 @@ export const useModelStore = create<ModelStore>((set, get) => ({
           input_neurons: inputNeurons,
           output_neurons: outputNeurons,
           layers: [
-            { name: 'Hidden Layer 1', neurons: 32 },
-            { name: 'Hidden Layer 2', neurons: 16 }
+            // Use a more efficient architecture for MNIST
+            // Smaller hidden layers reduce visualization overhead while
+            // maintaining good accuracy
+            { name: 'Hidden Layer 1', neurons: 16 },
+            { name: 'Hidden Layer 2', neurons: 10 }
           ],
           num_layers: 2
         });

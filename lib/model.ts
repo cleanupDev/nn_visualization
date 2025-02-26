@@ -8,7 +8,6 @@ import { Neuron, useModelStore } from "@/components/store";
 
 export function createAndCompileModel(
   inputShape: number[] = [2]
-  // Remove initializer parameter
 ) {
   const {
     input_neurons,
@@ -16,19 +15,21 @@ export function createAndCompileModel(
     layers,
     setNumParams,
     setNeurons,
-    trainingData, // Get trainingData from the store
+    trainingData, 
+    selectedDataset,
   } = useModelStore.getState();
 
-  console.log("Creating new model with random initialization");
+  console.log("Creating new model with optimized initialization");
   
   const model = tf.sequential();
 
   const neurons: Neuron[] = [];
 
-  // Always use random normal initialization with higher variance for better training
-  const kernelInitializer = tf.initializers.randomNormal({ mean: 0, stddev: 0.1 });
-  // Add random initialization for biases too
-  const biasInitializer = tf.initializers.randomNormal({ mean: 0, stddev: 0.1 });
+  // Use more appropriate initializers based on activation function
+  // He initialization for ReLU, Xavier/Glorot for sigmoid
+  const hiddenLayerInitializer = tf.initializers.heNormal({ seed: 42 });
+  const outputLayerInitializer = tf.initializers.glorotNormal({ seed: 42 });
+  const biasInitializer = tf.initializers.zeros();
 
   model.add(
     tf.layers.inputLayer({
@@ -42,46 +43,58 @@ export function createAndCompileModel(
       id: `neuron-0-${i}`,
       position: { x: 0, y: 0, z: 0 },
       layer: 0,
-      bias: Math.random() * 0.2 - 0.1, // Random bias between -0.1 and 0.1
+      bias: 0, // Input neurons don't need random bias
       weights: [], // Input neurons don't have input weights
       activation: "None",
     });
   }
 
-  // Add hidden layers with random initialization
+  // Add hidden layers with appropriate initialization
   layers.forEach((layer, layerIdx) => {
     const layerIndex = layerIdx + 1;
     model.add(
       tf.layers.dense({
         units: layer.neurons,
         activation: "relu",
-        kernelInitializer: kernelInitializer,
+        kernelInitializer: hiddenLayerInitializer,
         biasInitializer: biasInitializer,
       })
     );
   });
 
-  // Add output layer with random initialization
+  // Add output layer with appropriate initialization
   model.add(
     tf.layers.dense({
       units: output_neurons,
       activation: "sigmoid",
-      kernelInitializer: kernelInitializer,
+      kernelInitializer: outputLayerInitializer,
       biasInitializer: biasInitializer,
     })
   );
 
-  // Compile the model before extracting weights
+  // Choose optimal optimizer based on dataset
+  let optimizer;
+  if (selectedDataset === 'mnist') {
+    // Adam optimizer works better for complex datasets
+    optimizer = tf.train.adam(0.001);
+  } else if (selectedDataset === 'sine') {
+    // RMSProp works well for regression problems
+    optimizer = tf.train.rmsprop(0.01);
+  } else {
+    // SGD with momentum for XOR
+    optimizer = tf.train.momentum(0.1, 0.9);
+  }
+
+  // Compile the model with appropriate loss function and optimizer
   model.compile({
-    optimizer: "sgd",
-    loss: "meanSquaredError",
+    optimizer: optimizer,
+    loss: selectedDataset === 'mnist' ? 'categoricalCrossentropy' : 'meanSquaredError',
     metrics: ["accuracy"],
   });
 
   console.log("Model created, extracting weights...");
   
-  // Extract weights from the model to initialize neurons properly
-  // Skip input layer (index 0) as it doesn't have incoming weights
+  // Extract weights for visualization
   for (let layerIndex = 1; layerIndex < model.layers.length; layerIndex++) {
     const layer = model.layers[layerIndex];
     const weights = layer.getWeights();
@@ -113,13 +126,6 @@ export function createAndCompileModel(
           weights: weightMatrix[i],
           activation,
         });
-        
-        // Log some neurons for debugging
-        if (i === 0) {
-          console.log(`Created ${layerIndex === model.layers.length - 1 ? "output" : "hidden"} neuron ${neuronId} with:`);
-          console.log(`  Bias: ${biasArray[i].toFixed(6)}`);
-          console.log(`  First few weights: ${weightMatrix[i].slice(0, 3).map(w => w.toFixed(6)).join(', ')} (total: ${weightMatrix[i].length})`);
-        }
       }
     } else {
       console.warn(`Layer ${layerIndex} has no weights or incomplete weights`);
