@@ -25,6 +25,10 @@ const ControlPanel = () => {
     setIsTraining,
     trainingData,
     selectedDataset,
+    currentOptimizer,
+    currentLossFunction,
+    learningRate,
+    momentumValue,
     createModelAndLoadData,
     updateWeightsAndBiases,
     rebuildModelFromLayers
@@ -290,6 +294,32 @@ const ControlPanel = () => {
               <span className="text-zinc-500">ACCURACY</span>
               <span className="text-emerald-400">
                 {typeof curr_acc === 'number' ? (curr_acc * 100).toFixed(2) + '%' : curr_acc}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-zinc-500">OPTIMIZER</span>
+              <span className="text-blue-400">
+                {currentOptimizer}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-zinc-500">LEARNING RATE</span>
+              <span className="text-blue-400">
+                {learningRate}
+              </span>
+            </div>
+            {momentumValue !== null && (
+              <div className="flex justify-between">
+                <span className="text-zinc-500">MOMENTUM</span>
+                <span className="text-blue-400">
+                  {momentumValue}
+                </span>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span className="text-zinc-500">LOSS</span>
+              <span className="text-blue-400">
+                {currentLossFunction}
               </span>
             </div>
             <div className="flex justify-between">

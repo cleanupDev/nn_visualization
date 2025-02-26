@@ -74,21 +74,44 @@ export function createAndCompileModel(
 
   // Choose optimal optimizer based on dataset
   let optimizer;
+  let optimizerDescription = "N/A";
+  let lossFunction = "N/A";
+  let learningRate = 0.01;
+  let momentumValue = null;
+  
   if (selectedDataset === 'mnist') {
     // Adam optimizer works better for complex datasets
-    optimizer = tf.train.adam(0.001);
+    learningRate = 0.001;
+    optimizer = tf.train.adam(learningRate);
+    lossFunction = 'categoricalCrossentropy';
+    optimizerDescription = `Adam`;
   } else if (selectedDataset === 'sine') {
     // RMSProp works well for regression problems
-    optimizer = tf.train.rmsprop(0.01);
+    learningRate = 0.01;
+    optimizer = tf.train.rmsprop(learningRate);
+    lossFunction = 'meanSquaredError';
+    optimizerDescription = `RMSProp`;
   } else {
     // SGD with momentum for XOR
-    optimizer = tf.train.momentum(0.1, 0.9);
+    learningRate = 0.1;
+    momentumValue = 0.9;
+    optimizer = tf.train.momentum(learningRate, momentumValue);
+    lossFunction = 'meanSquaredError';
+    optimizerDescription = `SGD+Momentum`;
   }
 
+  // Update the store with optimizer information
+  useModelStore.setState({ 
+    currentOptimizer: optimizerDescription,
+    currentLossFunction: lossFunction,
+    learningRate: learningRate,
+    momentumValue: momentumValue
+  });
+  
   // Compile the model with appropriate loss function and optimizer
   model.compile({
     optimizer: optimizer,
-    loss: selectedDataset === 'mnist' ? 'categoricalCrossentropy' : 'meanSquaredError',
+    loss: lossFunction,
     metrics: ["accuracy"],
   });
 

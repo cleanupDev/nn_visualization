@@ -48,6 +48,10 @@ interface ModelInfo {
   neurons: Neuron[];
   selectedDataset: 'xor' | 'sine' | 'mnist' | null;
   trainingData: { xs: tf.Tensor; ys: tf.Tensor } | null;
+  currentOptimizer: string;
+  currentLossFunction: string;
+  learningRate: number;
+  momentumValue: number | null; // Only used for SGD with momentum
 }
 
 export interface Neuron {
@@ -125,6 +129,10 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   // Add camera type state
   cameraType: "perspective",
   setCameraType: (type) => set({ cameraType: type }),
+  currentOptimizer: "N/A",
+  currentLossFunction: "N/A",
+  learningRate: 0.01,
+  momentumValue: null,
 
   setModel: (model: tf.LayersModel | null) => set({ model }),
   setNumNeurons: (num: number) => set({ num_neurons: num }),
@@ -254,7 +262,13 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   setTrainingData: (data: { xs: tf.Tensor; ys: tf.Tensor } | null) => set({ trainingData: data }),
   createModelAndLoadData: async (dataset) => {
     // Clear the fallback weights cache
-    set({ fallbackWeightsCache: {} });
+    set({ 
+      fallbackWeightsCache: {},
+      currentOptimizer: "N/A", // Reset optimizer info
+      currentLossFunction: "N/A", // Reset loss function info
+      learningRate: 0.01, // Reset learning rate
+      momentumValue: null // Reset momentum
+    });
     
     // Load the dataset first
     await get().loadDataset(dataset);
