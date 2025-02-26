@@ -43,30 +43,31 @@ export function SceneControls({ isSidebarOpen }: SceneControlsProps) {
         )}
       >
         <div className="flex items-center gap-1 rounded-md border border-zinc-800 bg-black/90 p-1 backdrop-blur-sm">
-          {/* Mouse Controls - only opens when clicked */}
-          <Tooltip open={showMouseControls}>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 rounded-sm p-0 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-300"
-                onClick={() => setShowMouseControls(!showMouseControls)}
-              >
-                <MousePointer className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="w-52">
-              <div className="space-y-2">
-                <p className="font-semibold">Mouse Controls:</p>
-                <ul className="text-xs space-y-1">
-                  <li>• <span className="font-medium">Left Button:</span> Rotate the view</li>
-                  <li>• <span className="font-medium">Right Button:</span> Pan the view</li>
-                  <li>• <span className="font-medium">Left + Scroll:</span> Zoom in/out</li>
-                  <li>• <span className="font-medium">Middle Button:</span> Also zooms</li>
-                </ul>
+          {/* Mouse Controls - manually controlled tooltip */}
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 rounded-sm p-0 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-300"
+              onClick={() => setShowMouseControls(!showMouseControls)}
+            >
+              <MousePointer className="h-4 w-4" />
+            </Button>
+            
+            {showMouseControls && (
+              <div className="absolute bottom-full right-0 mb-2 rounded-md border border-zinc-800 bg-zinc-950 p-3 shadow-md w-52">
+                <div className="space-y-2">
+                  <p className="font-semibold text-zinc-200">Mouse Controls:</p>
+                  <ul className="text-xs space-y-1 text-zinc-300">
+                    <li>• <span className="font-medium">Left Button:</span> Rotate the view</li>
+                    <li>• <span className="font-medium">Right Button:</span> Pan the view</li>
+                    <li>• <span className="font-medium">Left + Scroll:</span> Zoom in/out</li>
+                    <li>• <span className="font-medium">Middle Button:</span> Also zooms</li>
+                  </ul>
+                </div>
               </div>
-            </TooltipContent>
-          </Tooltip>
+            )}
+          </div>
 
           <Tooltip>
             <TooltipTrigger asChild>
