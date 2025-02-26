@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useRef, useMemo } from 'react'
+import React, { useRef, useState, useEffect, useMemo } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Environment } from '@react-three/drei'
 import CameraController from './camera-controller'
@@ -74,7 +74,20 @@ const FrameRateManager = ({ dataset }: { dataset: string | null }) => {
 
 export default function NeuralNetVisualization({ children }: { children: React.ReactNode }) {
   const { cameraType, selectedDataset } = useModelStore();
-  const isSidebarOpen = useMediaQuery("(min-width: 768px)");
+  const mediaQueryMatch = useMediaQuery("(min-width: 768px)");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  
+  // Listen for sidebar toggle events from the sidebar component
+  useEffect(() => {
+    const handleSidebarToggle = (e: CustomEvent) => {
+      setIsSidebarOpen(e.detail.isOpen);
+    };
+    
+    window.addEventListener('sidebar-toggle' as any, handleSidebarToggle);
+    return () => {
+      window.removeEventListener('sidebar-toggle' as any, handleSidebarToggle);
+    };
+  }, []);
   
   // Get performance settings based on dataset
   const perfSettings = useMemo(() => getPerformanceSettings(selectedDataset), [selectedDataset]);

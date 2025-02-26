@@ -5,7 +5,6 @@ import { ChevronLeft, ChevronRight, Menu } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import DatasetSelectionCard from './DatasetSelectionCard'
 import { cn } from '@/lib/utils'
-import { SceneControls } from '../scene-controls'
 
 interface SidebarMenuProps {
   children: ReactNode
@@ -91,9 +90,6 @@ export function ImprovedButtonControlledSidebarMenu({ children }: SidebarMenuPro
         </div>
       </div>
 
-      {/* Scene controls */}
-      <SceneControls isSidebarOpen={isOpen} />
-      
       <ScrollbarStyles />
     </>
   )
