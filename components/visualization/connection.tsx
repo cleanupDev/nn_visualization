@@ -77,6 +77,7 @@ export default function Connection({ connection, neurons }: { connection: Connec
     return 2.0 + strengthDiff * 7; // Thicker base width (2.0) + up to 7x for strong connections
   }, [connection.strength]);
 
+  // If either neuron is missing, don't render the connection
   if (!startNeuron || !endNeuron) {
     return null
   }

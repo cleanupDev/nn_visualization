@@ -514,115 +514,93 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   },
   initializeNetwork: () => {
     const state = get();
-    const visualNeurons: NeuronVisual[] = [];
-    const connections: Connection[] = [];
+    if (!state.layers || state.layers.length === 0) return;
     
-    // Clear the fallback weights cache when initializing a new network
-    const fallbackWeightsCache = {};
+    // Calculate total number of layers (input + hidden + output)
+    const totalLayers = state.layers.length + 2;
+    const spacing = 2.5;
     
-    const totalLayers = state.num_layers + 2; // input + hidden layers + output
+    // Create an array to hold all visual neuron objects
+    const newNeurons: NeuronVisual[] = [];
     
-    // Debug log of model neurons to help find the issue
-    console.log("Model neurons:", state.neurons.map(n => ({ id: n.id, layer: n.layer })));
-    
-    // Create input neurons
+    // First, generate neuron objects for input layer
     for (let i = 0; i < state.input_neurons; i++) {
-      // Find the corresponding model neuron
-      const modelNeuron = state.neurons.find(n => n.layer === 0 && n.id === `neuron-0-${i}`);
-      
-      if (!modelNeuron) {
-        console.error(`Could not find model neuron for input-0-${i}`);
-      }
-      
-      visualNeurons.push({
+      newNeurons.push({
         id: `input-0-${i}`,
-        position: new Vector3(0, 0, 0), // Will be updated by recalculatePositions
-        activation: 0.5, // Default activation
-        weight: 0, // Input neurons don't have weights
-        bias: modelNeuron?.bias || Math.random() * 0.2 - 0.1, // Use model bias or random if not found
-        activationFunction: 'tanh', // Use tanh instead of linear since it's a valid option
+        position: new Vector3(0, 0, 0), // Temporary position, will be updated later
+        activation: 0,
+        weight: 0,
+        bias: 0,
+        activationFunction: 'sigmoid',
         layer: 0,
-        type: 'input',
-        isWindowOpen: false,
-        weightHistory: [0], // Initialize history
-        biasHistory: [modelNeuron?.bias || 0], // Initialize history
-        activationHistory: [0.5], // Initialize history
+        type: 'input', // Explicitly mark as input layer neuron
+        weightHistory: [],
+        biasHistory: [],
+        activationHistory: []
       });
     }
-
-    // Create hidden neurons
+    
+    // Generate neuron objects for hidden layers
+    let currentLayer = 1;
     state.layers.forEach((layer, layerIndex) => {
       for (let i = 0; i < layer.neurons; i++) {
-        // Find the corresponding model neuron
-        const modelNeuron = state.neurons.find(n => n.layer === layerIndex + 1 && n.id === `neuron-${layerIndex + 1}-${i}`);
-        
-        if (!modelNeuron) {
-          console.error(`Could not find model neuron for hidden-${layerIndex + 1}-${i}`);
-        }
-        
-        // Calculate average weight if model neuron exists and has weights
-        const avgWeight = modelNeuron && modelNeuron.weights && modelNeuron.weights.length > 0 ? 
-          modelNeuron.weights.reduce((sum, w) => sum + w, 0) / modelNeuron.weights.length : 
-          Math.random() * 0.2 - 0.1; // Random weight if none found
-        
-        // Get bias from model or use random
-        const bias = modelNeuron?.bias ?? (Math.random() * 0.2 - 0.1);
-        
-        visualNeurons.push({
-          id: `hidden-${layerIndex + 1}-${i}`,
-          position: new Vector3(0, 0, 0), // Will be updated by recalculatePositions
-          activation: 0.5, // Default activation
-          weight: avgWeight, // Use actual weights average or random
-          bias: bias, // Use actual bias or random
-          activationFunction: 'relu',
-          layer: layerIndex + 1,
-          type: 'hidden',
-          isWindowOpen: false,
-          weightHistory: [avgWeight], // Initialize history
-          biasHistory: [bias], // Initialize history
-          activationHistory: [0.5], // Initialize history
+        newNeurons.push({
+          id: `neuron-${currentLayer}-${i}`,
+          position: new Vector3(0, 0, 0), // Temporary position, will be updated later
+          activation: 0,
+          weight: 0,
+          bias: 0,
+          activationFunction: layer.name.includes('relu') ? 'relu' : layer.name.includes('tanh') ? 'tanh' : 'sigmoid',
+          layer: currentLayer,
+          type: 'hidden', // Explicitly mark as hidden layer neuron
+          weightHistory: [],
+          biasHistory: [],
+          activationHistory: []
         });
       }
+      currentLayer++;
     });
-
-    // Create output neurons
+    
+    // Generate neuron objects for output layer
     for (let i = 0; i < state.output_neurons; i++) {
-      // Find the corresponding model neuron
-      const modelNeuron = state.neurons.find(n => n.layer === state.num_layers + 1 && n.id === `neuron-${state.num_layers + 1}-${i}`);
-      
-      if (!modelNeuron) {
-        console.error(`Could not find model neuron for output-${state.num_layers + 1}-${i}`);
-      }
-      
-      // Calculate average weight if model neuron exists and has weights
-      const avgWeight = modelNeuron && modelNeuron.weights && modelNeuron.weights.length > 0 ? 
-        modelNeuron.weights.reduce((sum, w) => sum + w, 0) / modelNeuron.weights.length : 
-        Math.random() * 0.2 - 0.1; // Random weight if none found
-      
-      // Get bias from model or use random
-      const bias = modelNeuron?.bias ?? (Math.random() * 0.2 - 0.1);
-      
-      visualNeurons.push({
-        id: `output-${state.num_layers + 1}-${i}`,
-        position: new Vector3(0, 0, 0), // Will be updated by recalculatePositions
-        activation: 0.5, // Default activation
-        weight: avgWeight, // Use actual weights average or random
-        bias: bias, // Use actual bias or random
+      newNeurons.push({
+        id: `output-${currentLayer}-${i}`,
+        position: new Vector3(0, 0, 0), // Temporary position, will be updated later
+        activation: 0,
+        weight: 0,
+        bias: 0,
         activationFunction: 'sigmoid',
-        layer: state.num_layers + 1,
-        type: 'output',
-        isWindowOpen: false,
-        weightHistory: [avgWeight], // Initialize history
-        biasHistory: [bias], // Initialize history
-        activationHistory: [0.5], // Initialize history
+        layer: currentLayer,
+        type: 'output', // Explicitly mark as output layer neuron
+        weightHistory: [],
+        biasHistory: [],
+        activationHistory: []
       });
     }
-
-    set({ 
-      visualNeurons,
-      fallbackWeightsCache
-    });
-    get().recalculatePositions();
+    
+    // Now position all neurons
+    let currentNeuronIndex = 0;
+    
+    // Helper function to position neurons in a layer
+    const positionNeuronsInLayer = (neuronsInLayer: number, layerIndex: number) => {
+      const layerOffset = layerIndex - (totalLayers - 1) / 2;
+      for (let i = 0; i < neuronsInLayer; i++) {
+        const verticalOffset = (neuronsInLayer - 1) / 2 - i;
+        newNeurons[currentNeuronIndex + i].position = new Vector3(
+          layerOffset * spacing,
+          verticalOffset * spacing,
+          0
+        );
+      }
+      currentNeuronIndex += neuronsInLayer;
+    };
+    
+    // Position all layers
+    positionNeuronsInLayer(state.input_neurons, 0);
+    state.layers.forEach((layer, idx) => positionNeuronsInLayer(layer.neurons, idx + 1));
+    positionNeuronsInLayer(state.output_neurons, totalLayers - 1);
+    
+    set({ visualNeurons: newNeurons });
     get().updateConnections();
   },
   recalculatePositions: () => {
