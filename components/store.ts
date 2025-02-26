@@ -103,6 +103,7 @@ type ModelStore = ModelInfo & ModelActions & {
   updateConnections: () => void;
   // Add a new action to toggle window state
   toggleNeuronWindow: (neuronId: string, isOpen: boolean) => void;
+  isLoading: boolean;
 };
 
 export const useModelStore = create<ModelStore>((set, get) => ({
@@ -133,6 +134,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   currentLossFunction: "N/A",
   learningRate: 0.01,
   momentumValue: null,
+  isLoading: false,
 
   setModel: (model: tf.LayersModel | null) => set({ model }),
   setNumNeurons: (num: number) => set({ num_neurons: num }),
@@ -234,21 +236,41 @@ export const useModelStore = create<ModelStore>((set, get) => ({
 
       case 'mnist':
         try {
+          // Show loading state
+          set({ isLoading: true });
+          
           const mnist = new MnistData();
           await mnist.load();
 
           // Use a smaller subset of MNIST for better performance
-          // 5000 samples is enough for visualization and still trains well
-          const batchSize = 5000; 
+          // Reducing from 5000 to 1000 samples for visualization - still trains well but much faster
+          // This significantly reduces the neural network size and connection count
+          const batchSize = 1000; 
           const { xs: mnistInputs, labels: mnistLabels } = mnist.nextTrainBatch(batchSize);
+          
+          // Enable memory optimization for WebGL
+          if (tf.getBackend() === 'webgl') {
+            // These settings help reduce GPU memory fragmentation
+            (tf.env() as any).set('WEBGL_DELETE_TEXTURE_THRESHOLD', 0);
+            (tf.env() as any).set('WEBGL_FLUSH_THRESHOLD', 1);
+            console.log('Enabled WebGL memory optimizations for MNIST');
+          }
 
           set({
             trainingData: { xs: mnistInputs, ys: mnistLabels },
             selectedDataset: 'mnist',
             inputShape: [784], // Update input shape for MNIST
+            isLoading: false
           });
+          
+          // Run garbage collection to free memory
+          setTimeout(() => {
+            tf.tidy(() => {});
+            console.log('Memory cleanup after MNIST loading. Current tensors:', tf.memory().numTensors);
+          }, 1000);
         } catch (error) {
           console.error('Error loading MNIST:', error);
+          set({ isLoading: false });
           // Handle error appropriately (e.g., display an error message)
         }
         break;

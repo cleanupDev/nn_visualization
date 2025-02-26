@@ -3,6 +3,46 @@
 import * as tf from "@tensorflow/tfjs";
 import { Neuron, useModelStore } from "@/components/store";
 
+// Initialize TensorFlow.js with WebGL when possible
+async function initTensorflowBackend() {
+  // Try to use WebGL first
+  try {
+    await tf.setBackend('webgl');
+    const backend = tf.getBackend();
+    console.log(`Using TensorFlow.js backend: ${backend}`);
+    
+    // Log GPU details if using WebGL
+    if (backend === 'webgl') {
+      const webglBackend = tf.backend() as any;
+      if (webglBackend && webglBackend.gpgpu) {
+        console.log('WebGL is active - GPU acceleration available');
+        // Log GPU info if available
+        try {
+          const gl = webglBackend.gpgpu.gl;
+          const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+          if (debugInfo) {
+            const vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
+            const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+            console.log(`GPU Vendor: ${vendor}`);
+            console.log(`GPU Renderer: ${renderer}`);
+          }
+        } catch (e) {
+          console.log('Could not get detailed GPU info');
+        }
+      }
+    } else {
+      console.warn('WebGL acceleration not available, using CPU instead');
+    }
+  } catch (e) {
+    console.warn('Failed to initialize WebGL backend:', e);
+    await tf.setBackend('cpu');
+    console.log('Fallback to CPU backend');
+  }
+}
+
+// Initialize backend when this module loads
+initTensorflowBackend();
+
 // Remove initializer type export
 // export type InitializerType = 'glorot_uniform' | 'he_normal' | 'random_normal' | 'zeros';
 

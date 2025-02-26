@@ -1,8 +1,9 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { useModelStore } from '../store'
 import Neuron from './neuron'
 import Connection from './connection'
 import InputLayerBox from './input-layer-box'
+import BatchedConnections from './batched-connections'
 
 export default function NeuralNetwork() {
   const { 
@@ -13,7 +14,8 @@ export default function NeuralNetwork() {
     model,
     curr_epoch,
     is_training,
-    input_neurons
+    input_neurons,
+    selectedDataset
   } = useModelStore()
 
   // Initialize network when layers change or when component mounts
@@ -46,6 +48,12 @@ export default function NeuralNetwork() {
 
   // Always use the box representation for the input layer regardless of size
   const useInputLayerBox = true
+  
+  // Determine if we should use batched rendering based on connection count
+  // Use batched rendering for large networks (like MNIST) with many connections
+  const useBatchedRendering = useMemo(() => {
+    return connections.length > 1000 || selectedDataset === 'mnist';
+  }, [connections.length, selectedDataset]);
 
   // Filter neurons based on the view mode
   const visibleNeurons = useInputLayerBox 
@@ -93,13 +101,21 @@ export default function NeuralNetwork() {
         />
       )}
       
-      {visibleConnections.map((connection) => (
-        <Connection
-          key={connection.id}
-          connection={connection}
-          neurons={visualNeurons}
+      {/* Use batched connections for large networks, regular connections for small ones */}
+      {useBatchedRendering ? (
+        <BatchedConnections 
+          connections={visibleConnections} 
+          neurons={visualNeurons} 
         />
-      ))}
+      ) : (
+        visibleConnections.map((connection) => (
+          <Connection
+            key={connection.id}
+            connection={connection}
+            neurons={visualNeurons}
+          />
+        ))
+      )}
     </>
   )
 }
