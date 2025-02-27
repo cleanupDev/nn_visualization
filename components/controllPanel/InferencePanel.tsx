@@ -186,7 +186,7 @@ const InferencePanel = () => {
       ctx.drawImage(tempCanvas, 0, 0, 28, 28, 0, 0, canvas.width, canvas.height);
     }, [pixels]);
 
-    // Set up drawing event handlers as direct DOM listeners for better control
+    // Enhanced drawing functionality
     useEffect(() => {
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -194,48 +194,70 @@ const InferencePanel = () => {
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
       
-      const getCoords = (e: MouseEvent | TouchEvent): {x: number, y: number} | null => {
+      // Configure drawing style
+      ctx.lineWidth = 20;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = 'white';
+      ctx.fillStyle = 'white';
+      
+      // Convert event coordinates to canvas coordinates
+      const getCanvasCoordinates = (event: MouseEvent | TouchEvent): {x: number, y: number} | null => {
         const rect = canvas.getBoundingClientRect();
         let clientX, clientY;
         
-        if ('touches' in e) {
-          if (e.touches.length === 0) return null;
-          clientX = e.touches[0].clientX;
-          clientY = e.touches[0].clientY;
+        if ('touches' in event) {
+          // Touch event
+          if (event.touches.length === 0) return null;
+          clientX = event.touches[0].clientX;
+          clientY = event.touches[0].clientY;
         } else {
-          clientX = e.clientX;
-          clientY = e.clientY;
+          // Mouse event
+          clientX = event.clientX;
+          clientY = event.clientY;
         }
         
-        const x = (clientX - rect.left) * (canvas.width / rect.width);
-        const y = (clientY - rect.top) * (canvas.height / rect.height);
-        
-        return { x, y };
+        return {
+          x: (clientX - rect.left) * (canvas.width / rect.width),
+          y: (clientY - rect.top) * (canvas.height / rect.height)
+        };
       };
       
-      const draw = (x: number, y: number) => {
-        if (!lastPositionRef.current) {
-          // First point - just draw a dot
-          ctx.fillStyle = 'white';
-          ctx.beginPath();
-          ctx.arc(x, y, 10, 0, Math.PI * 2);
-          ctx.fill();
-        } else {
-          // Draw a line from the last position to the current position
-          ctx.strokeStyle = 'white';
-          ctx.lineWidth = 20;
-          ctx.lineCap = 'round';
-          ctx.lineJoin = 'round';
-          
-          ctx.beginPath();
-          ctx.moveTo(lastPositionRef.current.x, lastPositionRef.current.y);
-          ctx.lineTo(x, y);
-          ctx.stroke();
-        }
+      // Start drawing
+      const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+        event.preventDefault();
         
-        lastPositionRef.current = { x, y };
+        const coords = getCanvasCoordinates(event);
+        if (!coords) return;
         
-        // Occasionally update the MNIST array during drawing
+        drawingRef.current = true;
+        setIsDrawing(true);
+        lastPositionRef.current = coords;
+        
+        // Draw initial dot
+        ctx.beginPath();
+        ctx.arc(coords.x, coords.y, 10, 0, Math.PI * 2);
+        ctx.fill();
+      };
+      
+      // Continue drawing
+      const handlePointerMove = (event: MouseEvent | TouchEvent) => {
+        event.preventDefault();
+        
+        if (!drawingRef.current) return;
+        
+        const coords = getCanvasCoordinates(event);
+        if (!coords || !lastPositionRef.current) return;
+        
+        // Draw line from last position to current position
+        ctx.beginPath();
+        ctx.moveTo(lastPositionRef.current.x, lastPositionRef.current.y);
+        ctx.lineTo(coords.x, coords.y);
+        ctx.stroke();
+        
+        lastPositionRef.current = coords;
+        
+        // Periodically update the MNIST array during drawing
         const now = Date.now();
         if (now - lastUpdateRef.current > 300) {
           updateMnistArray();
@@ -243,107 +265,86 @@ const InferencePanel = () => {
         }
       };
       
-      const startDrawing = (e: MouseEvent | TouchEvent) => {
-        e.preventDefault();
-        
-        const coords = getCoords(e);
-        if (!coords) return;
-        
-        drawingRef.current = true;
-        setIsDrawing(true);
-        
-        // Draw initial dot
-        ctx.fillStyle = 'white';
-        ctx.beginPath();
-        ctx.arc(coords.x, coords.y, 10, 0, Math.PI * 2);
-        ctx.fill();
-        
-        lastPositionRef.current = coords;
-      };
-      
-      const continueDrawing = (e: MouseEvent | TouchEvent) => {
-        e.preventDefault();
-        
+      // Stop drawing
+      const handlePointerUp = () => {
         if (!drawingRef.current) return;
         
-        const coords = getCoords(e);
-        if (!coords) return;
-        
-        draw(coords.x, coords.y);
+        drawingRef.current = false;
+        setIsDrawing(false);
+        lastPositionRef.current = null;
+        updateMnistArray();
+        lastUpdateRef.current = 0;
       };
       
-      const stopDrawing = () => {
-        if (drawingRef.current) {
-          drawingRef.current = false;
-          setIsDrawing(false);
-          lastPositionRef.current = null;
-          updateMnistArray();
-          lastUpdateRef.current = 0;
+      // Handle pointer leaving canvas
+      const handlePointerLeave = (event: MouseEvent | TouchEvent) => {
+        // Only stop drawing if we're not holding the mouse button
+        // This allows drawing back into the canvas while still holding down
+        if ('buttons' in event && event.buttons === 1) {
+          // Still pressing, don't stop drawing
+          return;
         }
+        handlePointerUp();
       };
       
+      // Update MNIST array from canvas data
+      const updateMnistArray = () => {
+        // Create a temporary canvas at 28x28 resolution
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = 28;
+        tempCanvas.height = 28;
+        const tempCtx = tempCanvas.getContext('2d');
+        if (!tempCtx) return;
+        
+        // Draw the current canvas to the smaller canvas
+        tempCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, 28, 28);
+        
+        // Get the pixel data
+        const imageData = tempCtx.getImageData(0, 0, 28, 28);
+        const data = imageData.data;
+        
+        // Convert to MNIST format
+        const mnistArray = new Array(784);
+        for (let i = 0; i < 784; i++) {
+          // Get the red channel and normalize to 0-1
+          mnistArray[i] = data[i * 4] / 255;
+        }
+        
+        // Update parent component state
+        setMnistDrawing(mnistArray);
+        setInferenceInput(mnistArray);
+        setRandomImageLabel(null);
+      };
+      
+      // Set up event listeners
       // Mouse events
-      canvas.addEventListener('mousedown', startDrawing);
-      canvas.addEventListener('mousemove', continueDrawing);
-      canvas.addEventListener('mouseup', stopDrawing);
-      canvas.addEventListener('mouseleave', stopDrawing);
+      canvas.addEventListener('mousedown', handlePointerDown);
+      canvas.addEventListener('mousemove', handlePointerMove);
+      canvas.addEventListener('mouseup', handlePointerUp);
+      canvas.addEventListener('mouseleave', handlePointerLeave);
       
-      // Touch events
-      canvas.addEventListener('touchstart', startDrawing, { passive: false });
-      canvas.addEventListener('touchmove', continueDrawing, { passive: false });
-      canvas.addEventListener('touchend', stopDrawing);
+      // Touch events - non-passive to allow preventDefault
+      canvas.addEventListener('touchstart', handlePointerDown, { passive: false });
+      canvas.addEventListener('touchmove', handlePointerMove, { passive: false });
+      canvas.addEventListener('touchend', handlePointerUp);
       
-      // Global event to catch mouse up outside canvas
-      window.addEventListener('mouseup', stopDrawing);
+      // Global mouse up handler to catch releases outside canvas
+      window.addEventListener('mouseup', handlePointerUp);
       
+      // Clean up event listeners
       return () => {
-        canvas.removeEventListener('mousedown', startDrawing);
-        canvas.removeEventListener('mousemove', continueDrawing);
-        canvas.removeEventListener('mouseup', stopDrawing);
-        canvas.removeEventListener('mouseleave', stopDrawing);
+        canvas.removeEventListener('mousedown', handlePointerDown);
+        canvas.removeEventListener('mousemove', handlePointerMove);
+        canvas.removeEventListener('mouseup', handlePointerUp);
+        canvas.removeEventListener('mouseleave', handlePointerLeave);
         
-        canvas.removeEventListener('touchstart', startDrawing);
-        canvas.removeEventListener('touchmove', continueDrawing);
-        canvas.removeEventListener('touchend', stopDrawing);
+        canvas.removeEventListener('touchstart', handlePointerDown);
+        canvas.removeEventListener('touchmove', handlePointerMove);
+        canvas.removeEventListener('touchend', handlePointerUp);
         
-        window.removeEventListener('mouseup', stopDrawing);
+        window.removeEventListener('mouseup', handlePointerUp);
       };
     }, []);
-    
-    // Update MNIST array from canvas data
-    const updateMnistArray = () => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      
-      // Create a temporary canvas at 28x28 resolution (MNIST size)
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = 28;
-      tempCanvas.height = 28;
-      const tempCtx = tempCanvas.getContext('2d');
-      if (!tempCtx) return;
-      
-      // Draw the current canvas to this smaller canvas
-      tempCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, 28, 28);
-      
-      // Get the pixel data
-      const imageData = tempCtx.getImageData(0, 0, 28, 28);
-      const data = imageData.data;
-      
-      // Convert to MNIST format (0-1 values in a 784 length array)
-      const mnistArray = new Array(784);
-      for (let i = 0; i < 784; i++) {
-        // Get the red channel (all RGB channels are the same in grayscale)
-        // and normalize to 0-1
-        mnistArray[i] = data[i * 4] / 255;
-      }
-      
-      // Update the parent component's state
-      setMnistDrawing(mnistArray);
-      setInferenceInput(mnistArray);
-      
-      // Clear random image label since we're drawing our own
-      setRandomImageLabel(null);
-    };
     
     return (
       <canvas 
