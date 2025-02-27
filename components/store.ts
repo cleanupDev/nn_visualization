@@ -602,7 +602,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         activation: 0,
         weight: 0,
         bias: 0,
-        activationFunction: 'sigmoid',
+        activationFunction: 'relu', // Input neurons pass through directly, no activation function
         layer: 0,
         type: 'input', // Explicitly mark as input layer neuron
         weightHistory: [],
@@ -621,7 +621,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
           activation: 0,
           weight: 0,
           bias: 0,
-          activationFunction: layer.name.includes('relu') ? 'relu' : layer.name.includes('tanh') ? 'tanh' : 'sigmoid',
+          activationFunction: 'relu', // Always use ReLU for hidden layers
           layer: currentLayer,
           type: 'hidden', // Explicitly mark as hidden layer neuron
           weightHistory: [],
