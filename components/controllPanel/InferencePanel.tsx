@@ -28,6 +28,7 @@ const InferencePanel = () => {
   const [xValue1, setXValue1] = useState(0);
   const [xValue2, setXValue2] = useState(0);
   const [sineX, setSineX] = useState(0);
+  const [lastInferredInput, setLastInferredInput] = useState<number[]>([]);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsStylesLoaded(true), 50);
@@ -78,6 +79,9 @@ const InferencePanel = () => {
       if (resultArray && resultArray.length > 0) {
         const outputValues = resultArray[0];
         setInferenceResult(outputValues);
+        
+        // Store the input value that was used for inference
+        setLastInferredInput([...inferenceInput]);
         
         // For classification tasks (XOR, MNIST), calculate confidence
         if (selectedDataset === 'xor' || selectedDataset === 'mnist') {
@@ -257,6 +261,11 @@ const InferencePanel = () => {
         </div>
       );
     } else if (selectedDataset === 'sine') {
+      // Use the lastInferredInput for calculations
+      const inferredX = lastInferredInput[0];
+      const actualSine = Math.sin(inferredX);
+      const error = Math.abs(inferenceResult[0] - actualSine);
+      
       return (
         <div className="space-y-2">
           <div className="flex justify-between">
@@ -265,13 +274,15 @@ const InferencePanel = () => {
           </div>
           <div className="flex justify-between">
             <span className="text-zinc-500">ACTUAL SINE</span>
-            <span className="text-blue-400">{Math.sin(sineX).toFixed(4)}</span>
+            <span className="text-blue-400">{actualSine.toFixed(4)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-zinc-500">ERROR</span>
-            <span className="text-yellow-400">
-              {Math.abs(inferenceResult[0] - Math.sin(sineX)).toFixed(4)}
-            </span>
+            <span className="text-yellow-400">{error.toFixed(4)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-zinc-500">INFERRED X</span>
+            <span className="text-zinc-400">{inferredX.toFixed(4)}</span>
           </div>
         </div>
       );
