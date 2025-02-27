@@ -18,6 +18,7 @@ interface ModelActions {
   setCurrPhase: (phase: string) => void;
   setCurrEpoch: (num: number) => void;
   setIsTraining: (isTraining: boolean) => void;
+  setShouldPause: (shouldPause: boolean) => void;
   updateNumParams: () => void;
   resetModelData: () => void;
   setNeurons: (updater: (prevNeurons: Neuron[]) => Neuron[]) => void;
@@ -44,6 +45,7 @@ interface ModelInfo {
   curr_phase: string;
   curr_epoch: number;
   is_training: boolean;
+  should_pause: boolean; // New state to track if training should be paused
   inputShape: number[];
   neurons: Neuron[];
   selectedDataset: 'xor' | 'sine' | 'mnist' | null;
@@ -122,6 +124,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   curr_phase: "training",
   curr_epoch: 0,
   is_training: false,
+  should_pause: false, // Initialize pause state as false
   inputShape: [2], // Default input shape
   neurons: [],
   selectedDataset: null, // Initial dataset
@@ -151,6 +154,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   setCurrPhase: (phase: string) => set({ curr_phase: phase }),
   setCurrEpoch: (num: number) => set({ curr_epoch: num }),
   setIsTraining: (isTraining: boolean) => set({ is_training: isTraining }),
+  setShouldPause: (shouldPause: boolean) => set({ should_pause: shouldPause }),
   updateNumParams: () => {
     set((state) => {
       let totalParams = 0;

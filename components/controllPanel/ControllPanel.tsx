@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { useModelStore } from '@/components/store';
 import * as tf from "@tensorflow/tfjs";
@@ -18,11 +18,13 @@ const ControlPanel = () => {
     curr_loss,
     curr_phase,
     is_training,
+    should_pause,
     setCurrAcc,
     setCurrLoss,
     setCurrPhase,
     setCurrEpoch,
     setIsTraining,
+    setShouldPause,
     trainingData,
     selectedDataset,
     currentOptimizer,
@@ -44,6 +46,14 @@ const ControlPanel = () => {
   const [hasBeenTrained, setHasBeenTrained] = useState(false);
   // Add state for panel expansion
   const [isPanelExpanded, setIsPanelExpanded] = useState(true);
+  
+  // Use ref for pause status to ensure callbacks have access to current value
+  const shouldPauseRef = useRef(false);
+  
+  // Keep the ref in sync with the store state
+  useEffect(() => {
+    shouldPauseRef.current = should_pause;
+  }, [should_pause]);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsStylesLoaded(true), 50);
@@ -85,12 +95,30 @@ const ControlPanel = () => {
 
   const startTraining = async (continueTraining: boolean = false) => {
     if (!model || !trainingData) return;
+    
+    // If we're already training and the pause button is clicked
+    if (is_training) {
+      // Set both the ref and the state
+      shouldPauseRef.current = true;
+      setShouldPause(true);
+      console.log("Pause requested - will stop after current epoch");
+      return;
+    }
+    
+    // Reset pause flag when starting/continuing training
+    shouldPauseRef.current = false;
+    setShouldPause(false);
     setIsTraining(true);
     
     // Reset epoch counter only if not continuing from previous training
     if (!continueTraining) {
       setCurrEpoch(0);
       setTotalEpochs(0);
+    }
+
+    // Reset the model's stopTraining flag when starting new training
+    if (model.stopTraining) {
+      model.stopTraining = false;
     }
 
     try {
@@ -123,7 +151,7 @@ const ControlPanel = () => {
       const batchSize = selectedDataset === 'mnist' ? 128 : 32;
       
       // Enable tensor memory cleanup during training without using tidy
-      tf.engine().startScope(); // Start a scope to track tensors
+      tf.engine().startScope();
       
       const history = await model.fit(trainingData.xs, trainingData.ys, {
         epochs: epochsToTrain,
@@ -154,6 +182,13 @@ const ControlPanel = () => {
             // Update state with the latest accuracy and loss after each epoch
             setCurrAcc(logs.acc || 0);
             setCurrLoss(logs.loss || 0);
+            
+            // Check if training should be paused after this epoch using the ref
+            if (shouldPauseRef.current) {
+              console.log(`Pausing training after epoch ${currentEpoch + 1}`);
+              // Set a flag to stop training properly
+              model.stopTraining = true;
+            }
           },
         },
       });
@@ -167,11 +202,22 @@ const ControlPanel = () => {
         setAnimationInterval(null);
       }
       
-      setIsTraining(false);
-      setCurrPhase("trained");
+      // Update total epochs tracker based on actual training performed
+      setTotalEpochs(startEpoch + (history.history.loss?.length || 0));
       
-      // Update total epochs tracker
-      setTotalEpochs(startEpoch + epochsToTrain);
+      // Check if training was paused or completed normally
+      if (shouldPauseRef.current) {
+        // If paused, just set is_training to false but keep curr_phase as is
+        setIsTraining(false);
+        setShouldPause(false); // Reset pause flag
+        shouldPauseRef.current = false; // Also reset the ref
+        console.log("Training paused");
+      } else {
+        // If completed normally, update the phase
+        setIsTraining(false);
+        setCurrPhase("trained");
+        console.log("Training completed");
+      }
       
       // Final update of weights and connections
       updateWeightsAndBiases(model);
@@ -185,6 +231,8 @@ const ControlPanel = () => {
       
       console.error("Training error:", error);
       setIsTraining(false);
+      setShouldPause(false);
+      shouldPauseRef.current = false; // Reset the ref
       setCurrPhase("error");
     }
   };
@@ -298,7 +346,7 @@ const ControlPanel = () => {
               variant="outline"
               size="icon"
               onClick={() => startTraining(hasBeenTrained)}
-              disabled={is_training || !model}
+              disabled={!model}
               className="flex-1 h-10 border-zinc-800 bg-black/50 font-mono text-xs text-zinc-400 hover:bg-zinc-900 hover:text-zinc-300"
             >
               {is_training ? <Pause className="h-4 w-4 mr-2" /> : <Play className="h-4 w-4 mr-2" />}
