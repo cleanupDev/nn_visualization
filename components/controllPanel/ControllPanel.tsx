@@ -227,7 +227,9 @@ const ControlPanel = () => {
                 <Zap className="mr-2 h-4 w-4" />
                 TRAINING.CONTROL
               </div>
-              <ChevronDown className="h-4 w-4 text-zinc-400" />
+              <div className="h-6 w-6 flex items-center justify-center">
+                <ChevronDown className="h-4 w-4 text-zinc-400" />
+              </div>
             </CardTitle>
           </CardHeader>
         </Card>
@@ -251,7 +253,7 @@ const ControlPanel = () => {
               variant="ghost"
               size="sm"
               onClick={() => setIsPanelExpanded(false)}
-              className="h-6 px-1 text-zinc-400 hover:text-zinc-300 hover:bg-zinc-800/60"
+              className="h-6 w-6 p-0 flex items-center justify-center text-zinc-400 hover:text-zinc-300 hover:bg-zinc-800/60"
             >
               <ChevronUp className="h-4 w-4" />
             </Button>
