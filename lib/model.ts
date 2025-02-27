@@ -106,7 +106,7 @@ export function createAndCompileModel(
   model.add(
     tf.layers.dense({
       units: output_neurons,
-      activation: "sigmoid",
+      activation: selectedDataset === 'sine' ? "tanh" : "sigmoid",
       kernelInitializer: outputLayerInitializer,
       biasInitializer: biasInitializer,
     })
@@ -179,7 +179,10 @@ export function createAndCompileModel(
       // Create neurons for this layer
       for (let i = 0; i < weightMatrix.length; i++) {
         const neuronId = `neuron-${layerIndex}-${i}`;
-        const activation = layerIndex === model.layers.length - 1 ? "sigmoid" : "relu";
+        // Update activation function based on the dataset and layer
+        const activation = layerIndex === model.layers.length - 1 
+          ? (selectedDataset === 'sine' ? "tanh" : "sigmoid") 
+          : "relu";
         
         neurons.push({
           id: neuronId,

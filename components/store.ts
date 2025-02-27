@@ -615,7 +615,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         activation: 0,
         weight: 0,
         bias: 0,
-        activationFunction: 'sigmoid',
+        activationFunction: state.selectedDataset === 'sine' ? 'tanh' : 'sigmoid',
         layer: currentLayer,
         type: 'output', // Explicitly mark as output layer neuron
         weightHistory: [],

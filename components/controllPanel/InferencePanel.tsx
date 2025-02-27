@@ -48,6 +48,11 @@ const InferencePanel = () => {
       setInferenceInput(Array(784).fill(0));
       setMnistDrawing(Array(784).fill(0));
     }
+    
+    // Reset inference results when switching datasets
+    setInferenceResult(null);
+    setConfidence([]);
+    setLastInferredInput([]);
   }, [selectedDataset]);
 
   const runInference = async () => {
@@ -299,7 +304,9 @@ const InferencePanel = () => {
           </div>
           <div className="flex justify-between">
             <span className="text-zinc-500">CONFIDENCE</span>
-            <span className="text-emerald-400">{maxConfidence.toFixed(2)}%</span>
+            <span className="text-emerald-400">
+              {maxConfidence !== undefined ? `${maxConfidence.toFixed(2)}%` : '0%'}
+            </span>
           </div>
         </div>
       );
