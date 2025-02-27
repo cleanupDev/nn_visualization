@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useModelStore } from '@/components/store';
 import * as tf from "@tensorflow/tfjs";
-import { Play, Zap, Brain } from "lucide-react";
+import { Play, Zap, Brain, ChevronUp, ChevronDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -299,16 +299,19 @@ const InferencePanel = () => {
     return (
       <div 
         className={cn(
-          "z-10 rounded-md border border-zinc-800 bg-black/90 backdrop-blur-sm transition-opacity duration-300 min-w-[320px] mt-4 cursor-pointer",
+          "z-10 rounded-md border border-zinc-800 bg-black/90 backdrop-blur-sm transition-all duration-200 min-w-[320px] mt-4 cursor-pointer hover:bg-zinc-900/90 hover:border-zinc-700",
           isStylesLoaded ? "opacity-100" : "opacity-0"
         )}
         onClick={() => setIsPanelExpanded(true)}
       >
         <Card className="border-zinc-800 bg-transparent shadow-none">
-          <CardHeader className="pb-2 px-5">
-            <CardTitle className="flex items-center font-mono text-sm font-medium text-zinc-300">
-              <Brain className="mr-2 h-4 w-4" />
-              INFERENCE.CONTROL
+          <CardHeader className="py-3 px-5">
+            <CardTitle className="flex items-center justify-between font-mono text-sm font-medium text-zinc-300">
+              <div className="flex items-center">
+                <Brain className="mr-2 h-4 w-4" />
+                INFERENCE.CONTROL
+              </div>
+              <ChevronDown className="h-4 w-4 text-zinc-400" />
             </CardTitle>
           </CardHeader>
         </Card>
@@ -318,11 +321,11 @@ const InferencePanel = () => {
 
   return (
     <div className={cn(
-      "z-10 rounded-md border border-zinc-800 bg-black/90 backdrop-blur-sm transition-opacity duration-300 min-w-[320px] mt-4",
+      "z-10 rounded-md border border-zinc-800 bg-black/90 backdrop-blur-sm transition-all duration-200 min-w-[320px] mt-4",
       isStylesLoaded ? "opacity-100" : "opacity-0"
     )}>
       <Card className="border-zinc-800 bg-transparent shadow-none">
-        <CardHeader className="pb-2 px-5">
+        <CardHeader className="py-3 px-5">
           <CardTitle className="flex items-center justify-between font-mono text-sm font-medium text-zinc-300">
             <div className="flex items-center">
               <Brain className="mr-2 h-4 w-4" />
@@ -332,9 +335,9 @@ const InferencePanel = () => {
               variant="ghost"
               size="sm"
               onClick={() => setIsPanelExpanded(false)}
-              className="h-6 px-1 text-zinc-400 hover:text-zinc-300"
+              className="h-6 px-1 text-zinc-400 hover:text-zinc-300 hover:bg-zinc-800/60"
             >
-              —
+              <ChevronUp className="h-4 w-4" />
             </Button>
           </CardTitle>
         </CardHeader>
