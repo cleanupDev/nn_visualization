@@ -41,6 +41,7 @@ export default React.memo(function Neuron({ neuron, isRealigning }: { neuron: Ne
   const toggleNeuronWindow = useModelStore(state => state.toggleNeuronWindow)
   const is_training = useModelStore(state => state.is_training)
   const curr_epoch = useModelStore(state => state.curr_epoch)
+  const animationSpeed = useModelStore(state => state.animationSpeed)
   
   // Update window state when it changes
   useEffect(() => {
@@ -125,14 +126,14 @@ export default React.memo(function Neuron({ neuron, isRealigning }: { neuron: Ne
     const biasHistory = neuron.biasHistory || [neuron.bias];
     const activationHistory = neuron.activationHistory || [neuron.activation];
     
-    // Create epoch-based labels using epoch intervals (every 5 epochs)
-    // This matches our recording interval in the store
-    const epochInterval = 5;
-    // Only create labels when needed (when window is open)
+    // Use the slider value directly with no calculations
+    const epochInterval = animationSpeed;
+    
+    // Create epoch-based labels using the dynamic epochInterval
     const timeLabels = weightHistory.map((_, i) => {
       if (i === 0) return '0'; // First point is always epoch 0
       if (i === weightHistory.length - 1) return curr_epoch.toString(); // Last point is current epoch
-      // Other points follow the interval - calculate only when needed
+      // Adjust label calculation based on animation speed
       return Math.floor((i * epochInterval)).toString();
     });
     
@@ -163,7 +164,7 @@ export default React.memo(function Neuron({ neuron, isRealigning }: { neuron: Ne
       ]
     };
   }, [neuron.weightHistory, neuron.biasHistory, neuron.activationHistory, 
-      neuron.weight, neuron.bias, neuron.activation, curr_epoch, showWindow]);
+      neuron.weight, neuron.bias, neuron.activation, curr_epoch, showWindow, animationSpeed]);
 
   // Prepare connected neurons information
   const connectedNeurons = useMemo(() => {
@@ -246,7 +247,8 @@ $b = ${neuron.bias.toFixed(4)}$ (bias)
     responsive: true,
     maintainAspectRatio: false,
     animation: {
-      duration: 0, // Disable animations entirely for better performance
+      // Just use the slider value directly 
+      duration: animationSpeed,
     },
     plugins: {
       legend: {
@@ -300,7 +302,7 @@ $b = ${neuron.bias.toFixed(4)}$ (bias)
         }
       },
     },
-  }), [curr_epoch]);
+  }), [curr_epoch, animationSpeed]);
 
   const getValueColorClass = (value: number) => {
     if (value > 0) return 'text-green-500'; // Brighter green for positive

@@ -17,6 +17,7 @@ import {
 } from 'chart.js'
 import 'react-resizable/css/styles.css'
 import { X, Minimize, ChevronsDown } from 'lucide-react'
+import { useModelStore } from './store'
 
 // Register Chart.js components
 ChartJS.register(
@@ -84,6 +85,9 @@ export function DraggableWindowComponent({
   initialPosition = { x: 50, y: 50 },
   zIndex = 50
 }: DraggableWindowProps) {
+  // Get the animation speed from the model store to sync with training updates
+  const animationSpeed = useModelStore(state => state.animationSpeed)
+  
   const windowRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const headerRef = useRef<HTMLDivElement>(null)
@@ -195,12 +199,15 @@ export function DraggableWindowComponent({
     }
   }, [isMinimized])
 
-  // Enhanced graph options with theme support
+  // Enhanced graph options with theme support and dynamic animation duration
   const graphOptions = {
     responsive: true,
     maintainAspectRatio: false,
     animation: {
-      duration: 200 
+      // Set the animation duration based on the animation speed
+      // Faster speeds need quicker animations to keep up with updates
+      // Slower animation (higher duration) for slow speeds, faster animation for high speeds
+      duration: animationSpeed ? Math.max(50, 300 - (animationSpeed * 10)) : 200 
     },
     plugins: {
       legend: {

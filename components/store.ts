@@ -445,9 +445,8 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     // Get current animation speed (FPS) from the state
     const animationSpeed = state.animationSpeed || 1;
     
-    // Define the interval for recording history based on the slider value:
-    // Use animationSpeed directly to determine after how many epochs we record history
-    const historyInterval = Math.max(1, Math.floor(animationSpeed / 2));
+    // Use the slider value directly with no calculations
+    const historyInterval = animationSpeed;
     
     // Determine if we should record history now:
     // 1. Record first epoch (0)
@@ -510,7 +509,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
           const activationHistory = visualNeuron.activationHistory || [];
           
           // Limit history size to prevent memory bloat
-          const MAX_HISTORY_LENGTH = 50;
+          const MAX_HISTORY_LENGTH = 1000;
           
           // Add new history entries when:
           // 1. We're in training mode AND we're at a recording interval, OR

@@ -131,7 +131,7 @@ const ControlPanel = () => {
       // Determine update frequency based on dataset
       // Less frequent updates for complex datasets to improve performance
       const updateFrequency = selectedDataset === 'mnist' ? 
-        Math.max(5, animationSpeed) : // Update less frequently for MNIST
+        Math.max(20, 1000 / animationSpeed) : // Use a lower minimum value for faster updates
         1000 / animationSpeed; // Regular update frequency for simpler datasets
       
       const intervalId = setInterval(() => {
@@ -164,7 +164,9 @@ const ControlPanel = () => {
             setCurrEpoch(currentEpoch + 1); // +1 because epoch is 0-indexed in the callback
             
             // Clean up tensors less frequently for better performance
-            if (epoch % 5 === 0) {
+            // Use animation speed to determine cleanup frequency - don't use a fixed value of 5
+            const cleanupInterval = Math.max(1, Math.floor(animationSpeed / 2));
+            if (epoch % cleanupInterval === 0) {
               // Dispose unused tensors periodically without disrupting training
               tf.engine().endScope();
               tf.engine().startScope();
@@ -174,7 +176,12 @@ const ControlPanel = () => {
             const currentEpoch = startEpoch + epoch;
             
             // Only log every few epochs for better performance
-            if (epoch % (selectedDataset === 'mnist' ? 5 : 1) === 0) {
+            // Use animation speed to determine logging frequency
+            const loggingInterval = selectedDataset === 'mnist' ? 
+              Math.max(1, Math.floor(animationSpeed)) :
+              1;
+              
+            if (epoch % loggingInterval === 0) {
               console.log(
                 `Epoch ${currentEpoch + 1}: Loss = ${logs.loss}, Accuracy = ${logs.acc || 'N/A'}`
               );
