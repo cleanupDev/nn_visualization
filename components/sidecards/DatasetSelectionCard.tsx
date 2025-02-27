@@ -20,6 +20,7 @@ import {
     Legend,
     ScatterController,
 } from 'chart.js';
+import { Loader2 } from "lucide-react";
 
 ChartJS.register(
     CategoryScale,
@@ -36,12 +37,45 @@ const DatasetSelectionCard = () => {
   const { 
     selectedDataset,
     trainingData,
-    createModelAndLoadData
+    createModelAndLoadData,
+    isLoading
   } = useModelStore();
+
+  // Add state to track if MNIST data has been loaded
+  const [mnistLoaded, setMnistLoaded] = React.useState(false);
+
+  // Update mnistLoaded state when trainingData changes
+  React.useEffect(() => {
+    if (selectedDataset === 'mnist' && trainingData) {
+      setMnistLoaded(true);
+    }
+  }, [selectedDataset, trainingData]);
 
   const handleDatasetChange = (value: string) => {
     createModelAndLoadData(value as 'xor' | 'sine' | 'mnist');
   };
+
+  // Determine MNIST button text and style based on cached state
+  const getMnistButtonText = () => {
+    if (isLoading && selectedDataset === 'mnist') {
+      return (
+        <>
+          <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+          LOADING MNIST...
+        </>
+      );
+    }
+    if (mnistLoaded) {
+      return "MNIST";
+    }
+    return "LOAD MNIST.DATA";
+  };
+
+  const mnistButtonClassName = `mt-2 w-full font-mono text-xs ${
+    selectedDataset === 'mnist' 
+      ? 'border-zinc-700 bg-zinc-900 text-zinc-300' 
+      : 'border-zinc-800 bg-black/50 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-300'
+  }`;
 
   return (
     <Card className="border-zinc-800 bg-zinc-900/50">
@@ -53,31 +87,32 @@ const DatasetSelectionCard = () => {
       </CardHeader>
       <CardContent>
         <RadioGroup 
-          defaultValue={selectedDataset || 'xor'} 
+          value={selectedDataset && selectedDataset !== 'mnist' ? selectedDataset : ''}
           className="grid grid-cols-2 gap-2"
           onValueChange={handleDatasetChange}
         >
           <Label
             htmlFor="xor"
-            className="flex cursor-pointer items-center justify-center rounded-md border border-zinc-800 bg-black/50 p-4 font-mono text-sm text-zinc-400 hover:bg-zinc-900 hover:text-zinc-300 [&:has([data-state=checked])]:border-zinc-700 [&:has([data-state=checked])]:bg-zinc-900 [&:has([data-state=checked])]:text-zinc-300"
+            className={`flex cursor-pointer items-center justify-center rounded-md border border-zinc-800 bg-black/50 p-4 font-mono text-sm text-zinc-400 hover:bg-zinc-900 hover:text-zinc-300 [&:has([data-state=checked])]:border-zinc-700 [&:has([data-state=checked])]:bg-zinc-900 [&:has([data-state=checked])]:text-zinc-300 ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}
           >
-            <RadioGroupItem value="xor" id="xor" className="sr-only" />
+            <RadioGroupItem value="xor" id="xor" className="sr-only" disabled={isLoading} />
             XOR
           </Label>
           <Label
             htmlFor="sine"
-            className="flex cursor-pointer items-center justify-center rounded-md border border-zinc-800 bg-black/50 p-4 font-mono text-sm text-zinc-400 hover:bg-zinc-900 hover:text-zinc-300 [&:has([data-state=checked])]:border-zinc-700 [&:has([data-state=checked])]:bg-zinc-900 [&:has([data-state=checked])]:text-zinc-300"
+            className={`flex cursor-pointer items-center justify-center rounded-md border border-zinc-800 bg-black/50 p-4 font-mono text-sm text-zinc-400 hover:bg-zinc-900 hover:text-zinc-300 [&:has([data-state=checked])]:border-zinc-700 [&:has([data-state=checked])]:bg-zinc-900 [&:has([data-state=checked])]:text-zinc-300 ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}
           >
-            <RadioGroupItem value="sine" id="sine" className="sr-only" />
+            <RadioGroupItem value="sine" id="sine" className="sr-only" disabled={isLoading} />
             SINE
           </Label>
         </RadioGroup>
         <Button
-          className="mt-2 w-full border-zinc-800 bg-black/50 font-mono text-xs text-zinc-400 hover:bg-zinc-900 hover:text-zinc-300"
+          className={mnistButtonClassName}
           variant="outline"
           onClick={() => handleDatasetChange('mnist')}
+          disabled={isLoading}
         >
-          LOAD MNIST.DATA
+          {getMnistButtonText()}
         </Button>
         
         <div className="mt-4 space-y-2 rounded-lg border border-zinc-800 bg-black/50 p-3">
