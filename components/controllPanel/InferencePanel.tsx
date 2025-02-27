@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { useModelStore } from '@/components/store';
 import * as tf from "@tensorflow/tfjs";
@@ -17,6 +17,7 @@ const InferencePanel = () => {
     selectedDataset,
     curr_phase,
     inputShape,
+    getRandomMnistTestImage,
   } = useModelStore();
 
   const [isStylesLoaded, setIsStylesLoaded] = useState(false);
@@ -29,6 +30,7 @@ const InferencePanel = () => {
   const [xValue2, setXValue2] = useState(0);
   const [sineX, setSineX] = useState(0);
   const [lastInferredInput, setLastInferredInput] = useState<number[]>([]);
+  const [randomImageLabel, setRandomImageLabel] = useState<number | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsStylesLoaded(true), 50);
@@ -119,6 +121,67 @@ const InferencePanel = () => {
   const resetMnistDrawing = () => {
     setMnistDrawing(Array(784).fill(0));
     setInferenceInput(Array(784).fill(0));
+  };
+
+  // Function to handle selecting a random MNIST image
+  const handleSelectRandomMnistImage = () => {
+    const randomImage = getRandomMnistTestImage();
+    if (randomImage) {
+      setMnistDrawing(randomImage.image);
+      setInferenceInput(randomImage.image);
+      setRandomImageLabel(randomImage.label);
+    }
+  };
+
+  // MNIST display component for visualizing the 28x28 image
+  const MnistImageDisplay = ({ pixels }: { pixels: number[] }) => {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    
+    useEffect(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      
+      // Clear canvas
+      ctx.fillStyle = 'black';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw the image
+      const imageData = ctx.createImageData(28, 28);
+      const data = imageData.data;
+      
+      for (let i = 0; i < 784; i++) {
+        const value = Math.floor(pixels[i] * 255);
+        data[i * 4] = value;     // R
+        data[i * 4 + 1] = value; // G
+        data[i * 4 + 2] = value; // B
+        data[i * 4 + 3] = 255;   // A
+      }
+      
+      // Create a temporary canvas to scale the image
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = 28;
+      tempCanvas.height = 28;
+      const tempCtx = tempCanvas.getContext('2d');
+      if (!tempCtx) return;
+      
+      tempCtx.putImageData(imageData, 0, 0);
+      
+      // Scale the image to fit the canvas
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(tempCanvas, 0, 0, 28, 28, 0, 0, canvas.width, canvas.height);
+    }, [pixels]);
+    
+    return (
+      <canvas 
+        ref={canvasRef} 
+        width={140} 
+        height={140}
+        className="border border-zinc-700 bg-black"
+      />
+    );
   };
 
   const renderDatasetInputs = () => {
@@ -212,9 +275,20 @@ const InferencePanel = () => {
     } else if (selectedDataset === 'mnist') {
       return (
         <div className="space-y-4">
-          <div className="flex justify-center items-center">
-            <div className="text-center">
-              <p className="text-xs text-zinc-500 mb-2">MNIST drawing not implemented in this version</p>
+          <div className="flex flex-col items-center space-y-4">
+            <p className="text-xs text-zinc-500 mb-0">MNIST Digit</p>
+            
+            {/* Display the MNIST image */}
+            <MnistImageDisplay pixels={mnistDrawing} />
+            
+            {/* Show actual label if available from random selection */}
+            {randomImageLabel !== null && (
+              <div className="text-xs text-zinc-400">
+                Actual digit: <span className="font-bold text-blue-400">{randomImageLabel}</span>
+              </div>
+            )}
+            
+            <div className="flex space-x-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -222,6 +296,15 @@ const InferencePanel = () => {
                 className="h-8 border-zinc-800 bg-black/50 font-mono text-xs text-zinc-400"
               >
                 Reset
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSelectRandomMnistImage}
+                className="h-8 border-zinc-800 bg-black/50 font-mono text-xs text-zinc-400"
+              >
+                Select Random Image
               </Button>
             </div>
           </div>

@@ -35,7 +35,7 @@ const ControlPanel = () => {
   } = useModelStore();
 
   const [isStylesLoaded, setIsStylesLoaded] = useState(false);
-  const [animationSpeed, setAnimationSpeed] = useState(30); // Default animation speed
+  const [animationSpeed, setAnimationSpeed] = useState(1); // Default animation speed
   const [animationInterval, setAnimationInterval] = useState<NodeJS.Timeout | null>(null);
   const [numEpochs, setNumEpochs] = useState(50); // Default number of epochs
   // Track total epochs across multiple training sessions

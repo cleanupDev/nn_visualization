@@ -104,6 +104,9 @@ type ModelStore = ModelInfo & ModelActions & {
   // Add a new action to toggle window state
   toggleNeuronWindow: (neuronId: string, isOpen: boolean) => void;
   isLoading: boolean;
+  // Add MNIST specific functions
+  mnistData: MnistData | null;
+  getRandomMnistTestImage: () => { image: number[], label: number } | null;
 };
 
 export const useModelStore = create<ModelStore>((set, get) => ({
@@ -135,6 +138,8 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   learningRate: 0.01,
   momentumValue: null,
   isLoading: false,
+  // Initialize MNIST data as null
+  mnistData: null,
 
   setModel: (model: tf.LayersModel | null) => set({ model }),
   setNumNeurons: (num: number) => set({ num_neurons: num }),
@@ -220,6 +225,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
           trainingData: { xs: xorInputs, ys: xorLabels },
           selectedDataset: 'xor',
           inputShape: [2], // Update input shape
+          mnistData: null, // Reset MNIST data
         });
         break;
 
@@ -231,6 +237,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
           trainingData: { xs: sineInputs, ys: sineLabels },
           selectedDataset: 'sine',
           inputShape: [1], // Update input shape
+          mnistData: null, // Reset MNIST data
         });
         break;
 
@@ -260,7 +267,8 @@ export const useModelStore = create<ModelStore>((set, get) => ({
             trainingData: { xs: mnistInputs, ys: mnistLabels },
             selectedDataset: 'mnist',
             inputShape: [784], // Update input shape for MNIST
-            isLoading: false
+            isLoading: false,
+            mnistData: mnist // Store the mnist data for later random image selection
           });
           
           // Run garbage collection to free memory
@@ -810,6 +818,32 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     
     // Initialize visualization
     get().initializeNetwork();
+  },
+  // Add function to get a random MNIST test image 
+  getRandomMnistTestImage: () => {
+    const { mnistData } = get();
+    if (!mnistData) return null;
+    
+    // Get a single random image from the test dataset
+    const { xs, labels } = mnistData.nextTestBatch(1);
+    
+    // Convert to array
+    const imageData = xs.dataSync();
+    
+    // Get the label (one-hot encoded)
+    const labelData = labels.dataSync();
+    
+    // Convert one-hot encoding to single digit
+    const label = labelData.indexOf(1);
+    
+    // Dispose tensors to prevent memory leaks
+    xs.dispose();
+    labels.dispose();
+    
+    return { 
+      image: Array.from(imageData), 
+      label 
+    };
   },
 }));
 
