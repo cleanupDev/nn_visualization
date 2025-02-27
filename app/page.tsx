@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic'
 import { ErrorBoundary, FallbackProps } from 'react-error-boundary'
 import { ImprovedButtonControlledSidebarMenu } from '@/components/sidecards/improved-button-controlled-sidebar-menu'
 import ControllPanel from '@/components/controllPanel/ControllPanel'
+import InferencePanel from '@/components/controllPanel/InferencePanel'
 import LayerControlCard from '@/components/sidecards/LayerControllCard'
 import LayerInfoCard from '@/components/sidecards/LayerInfoCard'
 import { GitHubLink } from '@/components/GitHubLink'
@@ -32,8 +33,9 @@ export default function MainPage() {
           <LayerInfoCard />
         </ImprovedButtonControlledSidebarMenu>
         <NeuralNetVisualization>
-          <div className='absolute top-5 left-5'>
+          <div className='absolute top-5 left-5 flex flex-col'>
             <ControllPanel />
+            <InferencePanel />
           </div>
         </NeuralNetVisualization>
         <div className="fixed bottom-4 left-4 z-50 flex items-center">
