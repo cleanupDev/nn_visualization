@@ -30,6 +30,7 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "d3": "^7.8.5",
+    "framer-motion": "^12.4.7",
     "joi": "^17.13.3",
     "katex": "^0.16.11",
     "lucide-react": "^0.338.0",
