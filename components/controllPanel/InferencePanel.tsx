@@ -31,6 +31,7 @@ const InferencePanel = () => {
   const [sineX, setSineX] = useState(0);
   const [lastInferredInput, setLastInferredInput] = useState<number[]>([]);
   const [randomImageLabel, setRandomImageLabel] = useState<number | null>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsStylesLoaded(true), 50);
@@ -123,8 +124,10 @@ const InferencePanel = () => {
 
   // Simplified MNIST drawing handling for now
   const resetMnistDrawing = () => {
+    // Clear the drawing
     setMnistDrawing(Array(784).fill(0));
     setInferenceInput(Array(784).fill(0));
+    setRandomImageLabel(null);
   };
 
   // Function to handle selecting a random MNIST image
@@ -140,6 +143,11 @@ const InferencePanel = () => {
   // MNIST display component for visualizing the 28x28 image
   const MnistImageDisplay = ({ pixels }: { pixels: number[] }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const lastPositionRef = useRef<{x: number, y: number} | null>(null);
+    // Track drawing state locally in component
+    const drawingRef = useRef<boolean>(false);
+    // Track update timing
+    const lastUpdateRef = useRef<number>(0);
     
     useEffect(() => {
       const canvas = canvasRef.current;
@@ -177,13 +185,172 @@ const InferencePanel = () => {
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(tempCanvas, 0, 0, 28, 28, 0, 0, canvas.width, canvas.height);
     }, [pixels]);
+
+    // Set up drawing event handlers as direct DOM listeners for better control
+    useEffect(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      
+      const getCoords = (e: MouseEvent | TouchEvent): {x: number, y: number} | null => {
+        const rect = canvas.getBoundingClientRect();
+        let clientX, clientY;
+        
+        if ('touches' in e) {
+          if (e.touches.length === 0) return null;
+          clientX = e.touches[0].clientX;
+          clientY = e.touches[0].clientY;
+        } else {
+          clientX = e.clientX;
+          clientY = e.clientY;
+        }
+        
+        const x = (clientX - rect.left) * (canvas.width / rect.width);
+        const y = (clientY - rect.top) * (canvas.height / rect.height);
+        
+        return { x, y };
+      };
+      
+      const draw = (x: number, y: number) => {
+        if (!lastPositionRef.current) {
+          // First point - just draw a dot
+          ctx.fillStyle = 'white';
+          ctx.beginPath();
+          ctx.arc(x, y, 10, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          // Draw a line from the last position to the current position
+          ctx.strokeStyle = 'white';
+          ctx.lineWidth = 20;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          
+          ctx.beginPath();
+          ctx.moveTo(lastPositionRef.current.x, lastPositionRef.current.y);
+          ctx.lineTo(x, y);
+          ctx.stroke();
+        }
+        
+        lastPositionRef.current = { x, y };
+        
+        // Occasionally update the MNIST array during drawing
+        const now = Date.now();
+        if (now - lastUpdateRef.current > 300) {
+          updateMnistArray();
+          lastUpdateRef.current = now;
+        }
+      };
+      
+      const startDrawing = (e: MouseEvent | TouchEvent) => {
+        e.preventDefault();
+        
+        const coords = getCoords(e);
+        if (!coords) return;
+        
+        drawingRef.current = true;
+        setIsDrawing(true);
+        
+        // Draw initial dot
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.arc(coords.x, coords.y, 10, 0, Math.PI * 2);
+        ctx.fill();
+        
+        lastPositionRef.current = coords;
+      };
+      
+      const continueDrawing = (e: MouseEvent | TouchEvent) => {
+        e.preventDefault();
+        
+        if (!drawingRef.current) return;
+        
+        const coords = getCoords(e);
+        if (!coords) return;
+        
+        draw(coords.x, coords.y);
+      };
+      
+      const stopDrawing = () => {
+        if (drawingRef.current) {
+          drawingRef.current = false;
+          setIsDrawing(false);
+          lastPositionRef.current = null;
+          updateMnistArray();
+          lastUpdateRef.current = 0;
+        }
+      };
+      
+      // Mouse events
+      canvas.addEventListener('mousedown', startDrawing);
+      canvas.addEventListener('mousemove', continueDrawing);
+      canvas.addEventListener('mouseup', stopDrawing);
+      canvas.addEventListener('mouseleave', stopDrawing);
+      
+      // Touch events
+      canvas.addEventListener('touchstart', startDrawing, { passive: false });
+      canvas.addEventListener('touchmove', continueDrawing, { passive: false });
+      canvas.addEventListener('touchend', stopDrawing);
+      
+      // Global event to catch mouse up outside canvas
+      window.addEventListener('mouseup', stopDrawing);
+      
+      return () => {
+        canvas.removeEventListener('mousedown', startDrawing);
+        canvas.removeEventListener('mousemove', continueDrawing);
+        canvas.removeEventListener('mouseup', stopDrawing);
+        canvas.removeEventListener('mouseleave', stopDrawing);
+        
+        canvas.removeEventListener('touchstart', startDrawing);
+        canvas.removeEventListener('touchmove', continueDrawing);
+        canvas.removeEventListener('touchend', stopDrawing);
+        
+        window.removeEventListener('mouseup', stopDrawing);
+      };
+    }, []);
+    
+    // Update MNIST array from canvas data
+    const updateMnistArray = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      
+      // Create a temporary canvas at 28x28 resolution (MNIST size)
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = 28;
+      tempCanvas.height = 28;
+      const tempCtx = tempCanvas.getContext('2d');
+      if (!tempCtx) return;
+      
+      // Draw the current canvas to this smaller canvas
+      tempCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, 28, 28);
+      
+      // Get the pixel data
+      const imageData = tempCtx.getImageData(0, 0, 28, 28);
+      const data = imageData.data;
+      
+      // Convert to MNIST format (0-1 values in a 784 length array)
+      const mnistArray = new Array(784);
+      for (let i = 0; i < 784; i++) {
+        // Get the red channel (all RGB channels are the same in grayscale)
+        // and normalize to 0-1
+        mnistArray[i] = data[i * 4] / 255;
+      }
+      
+      // Update the parent component's state
+      setMnistDrawing(mnistArray);
+      setInferenceInput(mnistArray);
+      
+      // Clear random image label since we're drawing our own
+      setRandomImageLabel(null);
+    };
     
     return (
       <canvas 
         ref={canvasRef} 
         width={140} 
         height={140}
-        className="border border-zinc-700 bg-black"
+        className="border border-zinc-700 bg-black cursor-crosshair"
       />
     );
   };
@@ -191,7 +358,7 @@ const InferencePanel = () => {
   const renderDatasetInputs = () => {
     if (selectedDataset === 'xor') {
       return (
-        <div className="space-y-4">
+        <div className="space-y-4 w-full">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="font-mono text-xs text-zinc-500">INPUT X1 ({xValue1})</Label>
@@ -255,7 +422,7 @@ const InferencePanel = () => {
       );
     } else if (selectedDataset === 'sine') {
       return (
-        <div className="space-y-4">
+        <div className="space-y-4 w-full">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="font-mono text-xs text-zinc-500">INPUT X ({sineX.toFixed(2)})</Label>
@@ -278,18 +445,32 @@ const InferencePanel = () => {
       );
     } else if (selectedDataset === 'mnist') {
       return (
-        <div className="space-y-4">
+        <div className="space-y-4 w-full overflow-hidden">
           <div className="flex flex-col items-center space-y-4">
-            <p className="text-xs text-zinc-500 mb-0">MNIST Digit</p>
+            <div className="text-center space-y-1">
+              <p className="text-xs text-zinc-500 mb-0">MNIST Digit Recognition</p>
+              <p className="text-xs text-zinc-400">
+                Draw a digit (0-9) with your mouse or finger
+              </p>
+            </div>
             
-            {/* Display the MNIST image */}
-            <MnistImageDisplay pixels={mnistDrawing} />
+            {/* Display the MNIST image with a wrapper for indicator */}
+            <div className="relative flex justify-center w-full">
+              <MnistImageDisplay pixels={mnistDrawing} />
+              {isDrawing && (
+                <div className="absolute top-2 right-2 bg-emerald-500/80 text-white text-xs px-2 py-1 rounded-full">
+                  Drawing...
+                </div>
+              )}
+            </div>
             
             {/* Show actual label if available from random selection */}
-            {randomImageLabel !== null && (
+            {randomImageLabel !== null ? (
               <div className="text-xs text-zinc-400">
                 Actual digit: <span className="font-bold text-blue-400">{randomImageLabel}</span>
               </div>
+            ) : (
+              <div className="h-4"></div> // Empty space to maintain layout
             )}
             
             <div className="flex space-x-2">
@@ -297,19 +478,23 @@ const InferencePanel = () => {
                 variant="outline"
                 size="sm"
                 onClick={resetMnistDrawing}
-                className="h-8 border-zinc-800 bg-black/50 font-mono text-xs text-zinc-400"
+                className="h-8 border-zinc-800 bg-black/50 font-mono text-xs text-zinc-400 hover:bg-red-950/30 hover:border-red-800/50"
               >
-                Reset
+                Clear Canvas
               </Button>
               
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleSelectRandomMnistImage}
-                className="h-8 border-zinc-800 bg-black/50 font-mono text-xs text-zinc-400"
+                className="h-8 border-zinc-800 bg-black/50 font-mono text-xs text-zinc-400 hover:bg-blue-950/30 hover:border-blue-800/50"
               >
-                Select Random Image
+                Random Example
               </Button>
+            </div>
+            
+            <div className="text-center text-zinc-500 text-xs italic">
+              After drawing, click &ldquo;Run Inference&rdquo; to predict the digit
             </div>
           </div>
         </div>
@@ -404,7 +589,7 @@ const InferencePanel = () => {
     return (
       <div 
         className={cn(
-          "z-10 rounded-md border border-zinc-800 bg-black/90 backdrop-blur-sm transition-all duration-200 min-w-[320px] mt-4 cursor-pointer hover:bg-zinc-900/90 hover:border-zinc-700",
+          "z-10 rounded-md border border-zinc-800 bg-black/90 backdrop-blur-sm transition-all duration-200 w-[320px] mt-4 cursor-pointer hover:bg-zinc-900/90 hover:border-zinc-700",
           isStylesLoaded ? "opacity-100" : "opacity-0"
         )}
         onClick={() => setIsPanelExpanded(true)}
@@ -428,7 +613,7 @@ const InferencePanel = () => {
 
   return (
     <div className={cn(
-      "z-10 rounded-md border border-zinc-800 bg-black/90 backdrop-blur-sm transition-all duration-200 min-w-[320px] mt-4",
+      "z-10 rounded-md border border-zinc-800 bg-black/90 backdrop-blur-sm transition-all duration-200 w-[320px] mt-4",
       isStylesLoaded ? "opacity-100" : "opacity-0"
     )}>
       <Card className="border-zinc-800 bg-transparent shadow-none">
