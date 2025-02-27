@@ -47,7 +47,7 @@ interface ModelInfo {
   curr_epoch: number;
   is_training: boolean;
   should_pause: boolean; // New state to track if training should be paused
-  animationSpeed: number; // Animation speed in FPS
+  animationSpeed: number; // Animation speed Epochs
   inputShape: number[];
   neurons: Neuron[];
   selectedDataset: 'xor' | 'sine' | 'mnist' | null;
@@ -384,7 +384,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     
     // Skip updates if training is complete (not just paused)
     // This fixes the lag after training is finished
-    if (state.curr_phase === "trained" && !state.is_training) {
+    if (state.curr_phase === "trained") {
       return;
     }
     
@@ -446,33 +446,31 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     // Get current animation speed (FPS) from the state
     const animationSpeed = state.animationSpeed || 1;
     
-    // Define the interval for recording history based on FPS:
-    // For higher FPS, make intervals larger to prevent too frequent updates
-    // For lower FPS, use smaller intervals for more responsive updates
-    const historyInterval = Math.max(1, Math.floor(5 * (animationSpeed / 10)));
+    // Define the interval for recording history based on the slider value:
+    // Use animationSpeed directly to determine after how many epochs we record history
+    const historyInterval = Math.max(1, Math.floor(animationSpeed / 2));
     
     // Determine if we should record history now:
     // 1. Record first epoch (0)
-    // 2. Record at each interval (scaled by animation speed)
+    // 2. Record at each interval (based on animationSpeed)
     // 3. Record the last frame of training
     const shouldRecordHistory = 
       state.curr_epoch === 0 || 
       state.curr_epoch % historyInterval === 0 || 
       (state.is_training === false && state.curr_phase === "training"); // Only when paused, not when completed
       
-    // Define connection update interval based on FPS:
-    // For high FPS (60), update every ~12 epochs
-    // For low FPS (1), update every 2 epochs
-    const connectionUpdateInterval = Math.max(2, Math.floor(12 * (animationSpeed / 60)));
+    // Use the animationSpeed value directly as the connection update interval
+    // This means if animationSpeed is 5, connections update every 5 epochs
+    const connectionUpdateInterval = animationSpeed;
     
     // Only update connections at specific intervals to improve performance:
     // 1. First epoch (0)
-    // 2. At connection update interval (scaled by animation speed)
+    // 2. At connection update interval (directly from animationSpeed)
     // 3. When paused (but not when training is complete)
     const shouldUpdateConnections = 
       state.curr_epoch === 0 || 
       state.curr_epoch % connectionUpdateInterval === 0 || 
-      (state.is_training === false && state.curr_phase === "training"); // Only when paused, not when completed
+      (state.is_training === false && state.curr_phase === "training");
     
     // Now update the visual neurons to reflect the changes
     const updatedVisualNeurons = [...state.visualNeurons].map(visualNeuron => {

@@ -135,7 +135,7 @@ const ControlPanel = () => {
         1000 / animationSpeed; // Regular update frequency for simpler datasets
       
       const intervalId = setInterval(() => {
-        if (model) {
+        if (model && curr_phase !== "trained") {
           updateWeightsAndBiases(model);
         }
       }, updateFrequency);
@@ -216,12 +216,13 @@ const ControlPanel = () => {
       } else {
         // If completed normally, update the phase
         setIsTraining(false);
+        
+        // Final update of weights and connections before marking as trained
+        updateWeightsAndBiases(model);
+        
         setCurrPhase("trained");
         console.log("Training completed");
       }
-      
-      // Final update of weights and connections
-      updateWeightsAndBiases(model);
       
     } catch (error) {
       // Clean up on error
@@ -239,7 +240,7 @@ const ControlPanel = () => {
   };
   
   const stepForward = () => {
-    if (model) {
+    if (model && curr_phase !== "trained") {
       updateWeightsAndBiases(model);
     }
   };
@@ -328,13 +329,13 @@ const ControlPanel = () => {
           
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="font-mono text-xs text-zinc-500">ANIMATION.SPEED</Label>
-              <span className="font-mono text-xs text-zinc-400">{animationSpeed} FPS</span>
+              <Label className="font-mono text-xs text-zinc-500">CONNECTION.UPDATE.RATE</Label>
+              <span className="font-mono text-xs text-zinc-400">{animationSpeed} EPOCH/S</span>
             </div>
             <Slider
               value={[animationSpeed]}
               min={1}
-              max={60}
+              max={20}
               step={1}
               disabled={is_training}
               onValueChange={(values) => setAnimationSpeed(values[0])}
