@@ -19,12 +19,14 @@ const ControlPanel = () => {
     curr_phase,
     is_training,
     should_pause,
+    animationSpeed,
     setCurrAcc,
     setCurrLoss,
     setCurrPhase,
     setCurrEpoch,
     setIsTraining,
     setShouldPause,
+    setAnimationSpeed,
     trainingData,
     selectedDataset,
     currentOptimizer,
@@ -37,7 +39,6 @@ const ControlPanel = () => {
   } = useModelStore();
 
   const [isStylesLoaded, setIsStylesLoaded] = useState(false);
-  const [animationSpeed, setAnimationSpeed] = useState(1); // Default animation speed
   const [animationInterval, setAnimationInterval] = useState<NodeJS.Timeout | null>(null);
   const [numEpochs, setNumEpochs] = useState(50); // Default number of epochs
   // Track total epochs across multiple training sessions

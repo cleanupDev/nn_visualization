@@ -19,6 +19,7 @@ interface ModelActions {
   setCurrEpoch: (num: number) => void;
   setIsTraining: (isTraining: boolean) => void;
   setShouldPause: (shouldPause: boolean) => void;
+  setAnimationSpeed: (speed: number) => void;
   updateNumParams: () => void;
   resetModelData: () => void;
   setNeurons: (updater: (prevNeurons: Neuron[]) => Neuron[]) => void;
@@ -46,6 +47,7 @@ interface ModelInfo {
   curr_epoch: number;
   is_training: boolean;
   should_pause: boolean; // New state to track if training should be paused
+  animationSpeed: number; // Animation speed in FPS
   inputShape: number[];
   neurons: Neuron[];
   selectedDataset: 'xor' | 'sine' | 'mnist' | null;
@@ -143,6 +145,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   isLoading: false,
   // Initialize MNIST data as null
   mnistData: null,
+  animationSpeed: 1,
 
   setModel: (model: tf.LayersModel | null) => set({ model }),
   setNumNeurons: (num: number) => set({ num_neurons: num }),
@@ -155,6 +158,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   setCurrEpoch: (num: number) => set({ curr_epoch: num }),
   setIsTraining: (isTraining: boolean) => set({ is_training: isTraining }),
   setShouldPause: (shouldPause: boolean) => set({ should_pause: shouldPause }),
+  setAnimationSpeed: (speed: number) => set({ animationSpeed: speed }),
   updateNumParams: () => {
     set((state) => {
       let totalParams = 0;
@@ -378,13 +382,17 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   updateWeightsAndBiases: (model: tf.LayersModel) => {
     const state = get();
     
+    // Skip updates if training is complete (not just paused)
+    // This fixes the lag after training is finished
+    if (state.curr_phase === "trained" && !state.is_training) {
+      return;
+    }
+    
     // Clone the neurons array to avoid mutation
     const updatedNeurons = [...state.neurons];
     
     // Get the layers 
     const modelLayers = model.layers;
-    
-    console.log("Updating weights from model with layers:", modelLayers.length);
     
     // Track if weights change across epochs
     let weightsChanged = false;
@@ -402,16 +410,8 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         const weightMatrix = weightTensor.arraySync() as number[][];
         const biasArray = biasTensor.arraySync() as number[];
         
-        console.log(`Layer ${layerIndex} weights:`, {
-          shape: weightTensor.shape,
-          neurons: weightMatrix.length,
-          weightsPerNeuron: weightMatrix[0]?.length || 0
-        });
-        
         // Find neurons in this layer
         const layerNeurons = updatedNeurons.filter(n => n.layer === layerIndex);
-        
-        console.log(`Found ${layerNeurons.length} neurons in layer ${layerIndex} to update`);
         
         // Update each neuron's weights and bias
         layerNeurons.forEach((neuron, neuronIndexInLayer) => {
@@ -428,43 +428,51 @@ export const useModelStore = create<ModelStore>((set, get) => ({
             // Update weights - these are connections from previous layer
             neuron.weights = weightMatrix[neuronIndexInLayer];
             
-            // Log weight changes for the first few neurons in each layer
-            if (neuronIndexInLayer < 2) {
-              const newWeight = neuron.weights.length > 0 ? neuron.weights[0] : null;
-              const biasChanged = Math.abs(oldBias - neuron.bias) > 0.00001;
-              const weightChanged = oldWeight !== null && newWeight !== null && 
-                                    Math.abs(oldWeight - newWeight) > 0.00001;
-              
-              console.log(`Neuron ${neuron.id} in layer ${layerIndex}:`);
-              console.log(`  Bias: ${oldBias.toFixed(6)} → ${neuron.bias.toFixed(6)} (changed: ${biasChanged})`);
-              console.log(`  First weight: ${oldWeight?.toFixed(6) || 'none'} → ${newWeight?.toFixed(6) || 'none'} (changed: ${weightChanged})`);
-              
-              if (biasChanged || weightChanged) weightsChanged = true;
-            }
-          } else {
-            console.warn(`Neuron ${neuron.id} index out of bounds: ${neuronIndexInLayer} vs ${weightMatrix.length}x${biasArray.length}`);
+            // Track if weights changed
+            const newWeight = neuron.weights.length > 0 ? neuron.weights[0] : null;
+            const biasChanged = Math.abs(oldBias - neuron.bias) > 0.00001;
+            const weightChanged = oldWeight !== null && newWeight !== null && 
+                                  Math.abs(oldWeight - newWeight) > 0.00001;
+            
+            if (biasChanged || weightChanged) weightsChanged = true;
           }
         });
-      } else {
-        console.warn(`Layer ${layerIndex} has no weights or incomplete weights`);
       }
     }
-    
-    console.log(`Weights changed in this update: ${weightsChanged ? 'YES' : 'NO'}`);
     
     // Update the neurons in the store
     set({ neurons: updatedNeurons });
     
-    // Define the interval for recording history (every 5 epochs)
-    const historyInterval = 5;
+    // Get current animation speed (FPS) from the state
+    const animationSpeed = state.animationSpeed || 1;
+    
+    // Define the interval for recording history based on FPS:
+    // For higher FPS, make intervals larger to prevent too frequent updates
+    // For lower FPS, use smaller intervals for more responsive updates
+    const historyInterval = Math.max(1, Math.floor(5 * (animationSpeed / 10)));
+    
     // Determine if we should record history now:
     // 1. Record first epoch (0)
-    // 2. Record at each interval (every 5 epochs)
+    // 2. Record at each interval (scaled by animation speed)
     // 3. Record the last frame of training
     const shouldRecordHistory = 
       state.curr_epoch === 0 || 
       state.curr_epoch % historyInterval === 0 || 
-      (state.is_training === false && state.curr_phase === "trained");
+      (state.is_training === false && state.curr_phase === "training"); // Only when paused, not when completed
+      
+    // Define connection update interval based on FPS:
+    // For high FPS (60), update every ~12 epochs
+    // For low FPS (1), update every 2 epochs
+    const connectionUpdateInterval = Math.max(2, Math.floor(12 * (animationSpeed / 60)));
+    
+    // Only update connections at specific intervals to improve performance:
+    // 1. First epoch (0)
+    // 2. At connection update interval (scaled by animation speed)
+    // 3. When paused (but not when training is complete)
+    const shouldUpdateConnections = 
+      state.curr_epoch === 0 || 
+      state.curr_epoch % connectionUpdateInterval === 0 || 
+      (state.is_training === false && state.curr_phase === "training"); // Only when paused, not when completed
     
     // Now update the visual neurons to reflect the changes
     const updatedVisualNeurons = [...state.visualNeurons].map(visualNeuron => {
@@ -489,14 +497,6 @@ export const useModelStore = create<ModelStore>((set, get) => ({
           modelNeuron.weights.reduce((sum, w) => sum + w, 0) / modelNeuron.weights.length : 
           visualNeuron.weight; // Keep current weight if no weights found
         
-        // Log for a few neurons to verify updates
-        if ((type === 'hidden' && layerStr === '1' && indexStr === '0') || 
-            (type === 'output' && indexStr === '0')) {
-          console.log(`Updating ${type} neuron ${visualNeuron.id}:`);
-          console.log(`  Old bias: ${visualNeuron.bias.toFixed(6)}, New bias: ${modelNeuron.bias.toFixed(6)}`);
-          console.log(`  Old weight: ${visualNeuron.weight.toFixed(6)}, New weight: ${avgWeight.toFixed(6)}`);
-        }
-        
         // Update the visual neuron with model neuron data
         const updatedNeuron = {
           ...visualNeuron,
@@ -504,58 +504,73 @@ export const useModelStore = create<ModelStore>((set, get) => ({
           weight: avgWeight
         };
         
-        // Only update history if this neuron's window is open or we should record history
-        if (visualNeuron.isWindowOpen || shouldRecordHistory) {
+        // Only update history if this neuron's window is open
+        // This is a key optimization: we only track history for neurons being viewed
+        if (visualNeuron.isWindowOpen) {
           // Initialize history arrays if they don't exist
           const weightHistory = visualNeuron.weightHistory || [];
           const biasHistory = visualNeuron.biasHistory || [];
           const activationHistory = visualNeuron.activationHistory || [];
           
+          // Limit history size to prevent memory bloat
+          const MAX_HISTORY_LENGTH = 50;
+          
           // Add new history entries when:
           // 1. We're in training mode AND we're at a recording interval, OR
           // 2. This is the first entry (weightHistory is empty)
           if ((state.is_training && shouldRecordHistory) || weightHistory.length === 0) {
-            updatedNeuron.weightHistory = [...weightHistory, avgWeight];
-            updatedNeuron.biasHistory = [...biasHistory, modelNeuron.bias];
-            updatedNeuron.activationHistory = [...activationHistory, visualNeuron.activation];
+            // Add new history value while respecting the maximum length
+            updatedNeuron.weightHistory = [...weightHistory, avgWeight].slice(-MAX_HISTORY_LENGTH);
+            updatedNeuron.biasHistory = [...biasHistory, modelNeuron.bias].slice(-MAX_HISTORY_LENGTH);
+            updatedNeuron.activationHistory = [...activationHistory, visualNeuron.activation].slice(-MAX_HISTORY_LENGTH);
           } else {
             // Just maintain existing history arrays
             updatedNeuron.weightHistory = weightHistory;
             updatedNeuron.biasHistory = biasHistory;
             updatedNeuron.activationHistory = activationHistory;
           }
+        } else {
+          // For closed windows, don't maintain history arrays at all
+          // This saves memory and processing time
+          const { weightHistory, biasHistory, activationHistory, ...rest } = updatedNeuron;
+          return rest;
         }
         
         return updatedNeuron;
       }
       
       // If we couldn't find a model neuron, return the visual neuron unchanged
-      console.warn(`Could not find model neuron ${modelNeuronId} for visual neuron ${visualNeuron.id}`);
       return visualNeuron;
     });
     
     // Update visual neurons
     set({ visualNeurons: updatedVisualNeurons });
     
-    // Also update the connections to reflect the weight changes
-    get().updateConnections();
+    // Only update connections at specific intervals
+    // This is a major optimization to reduce the frequency of expensive connection updates
+    if (shouldUpdateConnections) {
+      get().updateConnections();
+    }
   },
   // Add method to toggle window state for a neuron
   toggleNeuronWindow: (neuronId: string, isOpen: boolean) => {
     set(state => {
       const updatedNeurons = [...state.visualNeurons].map(neuron => {
         if (neuron.id === neuronId) {
-          if (isOpen && !neuron.weightHistory) {
-            // Initialize history arrays when window is opened
+          if (isOpen && !neuron.isWindowOpen) {
+            // Only initialize history arrays when window is first opened
+            // This prevents duplicate initialization
             return {
               ...neuron,
-              isWindowOpen: isOpen,
+              isWindowOpen: true,
+              // Initialize with just the current value to start
               weightHistory: [neuron.weight],
               biasHistory: [neuron.bias],
               activationHistory: [neuron.activation]
             };
           } else if (!isOpen) {
-            // Clear history when window is closed to save memory
+            // Aggressively clean up history when window is closed to save memory
+            // This is the key optimization - completely remove history arrays
             const { weightHistory, biasHistory, activationHistory, ...rest } = neuron;
             return {
               ...rest,
@@ -699,7 +714,6 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     
     // Skip update if there are no neurons to visualize
     if (visualNeurons.length === 0) {
-      console.log('Skipping connections update: No neurons to visualize');
       return;
     }
     
@@ -709,45 +723,53 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       existingConnectionsMap.set(conn.id, conn);
     });
     
-    console.log(`Updating connections: ${neurons.length} model neurons, ${visualNeurons.length} visual neurons`);
+    // Only log when debugging is needed
+    // console.log(`Updating connections: ${neurons.length} model neurons, ${visualNeurons.length} visual neurons`);
     
     const newConnections: Connection[] = [];
     let connectionsChanged = false;
     
+    // Create a mapping of neuron IDs to model neurons for faster lookups
+    const neuronModelMap = new Map();
+    neurons.forEach(neuron => {
+      neuronModelMap.set(neuron.id, neuron);
+    });
+    
     // For each layer except the last, connect to the next layer
     for (let layerIndex = 0; layerIndex < state.num_layers + 1; layerIndex++) {
+      // Skip layers with no neurons
+      if (layerIndex >= state.num_layers + 1) continue;
+      
+      // Pre-filter neurons by layer to avoid repeated filtering operations
       const thisLayerNeurons = visualNeurons.filter(n => n.layer === layerIndex);
       const nextLayerNeurons = visualNeurons.filter(n => n.layer === layerIndex + 1);
       
-      console.log(`Layer ${layerIndex}: ${thisLayerNeurons.length} neurons → Layer ${layerIndex + 1}: ${nextLayerNeurons.length} neurons`);
+      // Skip if either layer has no neurons
+      if (thisLayerNeurons.length === 0 || nextLayerNeurons.length === 0) continue;
       
-      if (thisLayerNeurons.length === 0 || nextLayerNeurons.length === 0) {
-        console.warn(`Missing neurons in layer ${layerIndex} or ${layerIndex + 1}`);
-        continue;
-      }
-      
-      // For each neuron in this layer, create connections to all neurons in the next layer
-      thisLayerNeurons.forEach((startNeuron, startIndex) => {
-        nextLayerNeurons.forEach((endNeuron, endIndex) => {
+      // Process connections in batches to improve performance
+      for (let startIndex = 0; startIndex < thisLayerNeurons.length; startIndex++) {
+        const startNeuron = thisLayerNeurons[startIndex];
+        
+        for (let endIndex = 0; endIndex < nextLayerNeurons.length; endIndex++) {
+          const endNeuron = nextLayerNeurons[endIndex];
+          
           // Get the neuron ID parts to find the corresponding model neuron
           const [endType, endLayerStr, endIndexStr] = endNeuron.id.split('-');
           const endLayer = parseInt(endLayerStr);
           
-          // Find the model neuron that corresponds to this visual neuron
-          const modelNeuron = neurons.find(n => 
-            n.layer === endLayer && 
-            n.id === `neuron-${endLayer}-${endIndexStr}`
-          );
-          
           // Create a unique key for this connection to use with the cache
           const connectionKey = `${startNeuron.id}-to-${endNeuron.id}`;
           
-          let weight = 0;
-          let connectionStrength = 0.5; // Default neutral strength
-          let shouldSkip = false;
-          
           // Check if we already have this connection in our existing set
           const existingConnection = existingConnectionsMap.get(connectionKey);
+          
+          // Find model neuron using the map instead of .find() for better performance
+          const modelNeuronId = `neuron-${endLayer}-${endIndexStr}`;
+          const modelNeuron = neuronModelMap.get(modelNeuronId);
+          
+          let weight = 0;
+          let connectionStrength = 0.5; // Default neutral strength
           
           if (modelNeuron && modelNeuron.weights && modelNeuron.weights.length > startIndex) {
             // Use the actual weight from the model
@@ -766,63 +788,27 @@ export const useModelStore = create<ModelStore>((set, get) => ({
                 Math.abs(existingConnection.rawWeight - weight) < 0.001) {
               // Connection hasn't meaningfully changed, reuse it
               newConnections.push(existingConnection);
-              shouldSkip = true;
-            } else {
-              // Connection has changed
-              connectionsChanged = true;
-              
-              if (startIndex === 0 && endIndex === 0) {
-                console.log(`Connection weight (from model): ${startNeuron.id} → ${endNeuron.id}, raw: ${weight.toFixed(6)}, visual: ${connectionStrength.toFixed(4)}`);
-              }
+              continue; // Skip to next connection
             }
+            
+            // Only set connectionsChanged flag if this is a new connection or significantly changed
+            connectionsChanged = true;
           } else {
             // First, check if we already have a fallback weight for this connection
             if (fallbackWeightsCache[connectionKey] !== undefined) {
               // Use the cached weight
               weight = fallbackWeightsCache[connectionKey];
-              
-              if (startIndex === 0 && endIndex === 0) {
-                console.log(`Connection weight (from cache): ${startNeuron.id} → ${endNeuron.id}, raw: ${weight.toFixed(6)}`);
-              }
             } else {
-              // Generate a new random weight and store it in the cache
-              weight = Math.random() * 0.2 - 0.1; // Small random weight between -0.1 and 0.1
+              // Otherwise generate a random weight for visualization
+              weight = Math.random() * 0.2 - 0.1; // Small random number between -0.1 and 0.1
               fallbackWeightsCache[connectionKey] = weight;
-              connectionsChanged = true;
-              
-              if (startIndex === 0 && endIndex === 0) {
-                console.log(`Connection weight (new random): ${startNeuron.id} → ${endNeuron.id}, raw: ${weight.toFixed(6)}`);
-                
-                if (!modelNeuron) {
-                  console.warn(`Could not find model neuron: neuron-${endLayer}-${endIndexStr}`);
-                } else if (!modelNeuron.weights) {
-                  console.warn(`Model neuron ${modelNeuron.id} has no weights array`);
-                } else {
-                  console.warn(`Model neuron ${modelNeuron.id} weights length (${modelNeuron.weights.length}) too short for index ${startIndex}`);
-                }
-              }
             }
             
-            // Calculate connection strength from the weight (cached or new)
+            // Calculate connection strength using the same formula
             connectionStrength = 1 / (1 + Math.exp(-3 * weight));
-            
-            // Connection might have changed
-            if (existingConnection && 
-                Math.abs(existingConnection.strength - connectionStrength) < 0.001) {
-              // Connection hasn't meaningfully changed, reuse it
-              newConnections.push(existingConnection);
-              shouldSkip = true;
-            } else {
-              connectionsChanged = true;
-            }
           }
           
-          // Skip to next connection if we're reusing an existing one
-          if (shouldSkip) {
-            return; // This is a forEach, so 'return' acts like 'continue'
-          }
-          
-          // Create a new connection
+          // Add the new or updated connection
           newConnections.push({
             id: connectionKey,
             startNeuronId: startNeuron.id,
@@ -830,24 +816,14 @@ export const useModelStore = create<ModelStore>((set, get) => ({
             strength: connectionStrength,
             rawWeight: weight
           });
-        });
-      });
+        }
+      }
     }
     
-    // Skip update if connections haven't changed
-    if (!connectionsChanged && newConnections.length === existingConnections.length) {
-      console.log(`Connections unchanged (${newConnections.length} connections), skipping update`);
-      return;
+    // Only update state if connections actually changed
+    if (connectionsChanged || newConnections.length !== existingConnections.length) {
+      set({ connections: newConnections });
     }
-    
-    // Log connection summary
-    console.log(`Created ${newConnections.length} connections ${connectionsChanged ? '(with changes)' : ''}`);
-    
-    // Update the store with connections and the updated cache
-    set({ 
-      connections: newConnections,
-      fallbackWeightsCache
-    });
   },
   rebuildModelFromLayers: () => {
     const state = get();

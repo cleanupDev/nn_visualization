@@ -117,6 +117,9 @@ export default React.memo(function Neuron({ neuron, isRealigning }: { neuron: Ne
 
   // Get the graph data from the neuron's history in the store
   const graphData = useMemo(() => {
+    // Don't calculate this at all if window isn't shown
+    if (!showWindow) return undefined;
+    
     // Use the neuron's history from the store if available, or create placeholder data
     const weightHistory = neuron.weightHistory || [neuron.weight];
     const biasHistory = neuron.biasHistory || [neuron.bias];
@@ -125,11 +128,12 @@ export default React.memo(function Neuron({ neuron, isRealigning }: { neuron: Ne
     // Create epoch-based labels using epoch intervals (every 5 epochs)
     // This matches our recording interval in the store
     const epochInterval = 5;
+    // Only create labels when needed (when window is open)
     const timeLabels = weightHistory.map((_, i) => {
       if (i === 0) return '0'; // First point is always epoch 0
       if (i === weightHistory.length - 1) return curr_epoch.toString(); // Last point is current epoch
-      // Other points follow the interval
-      return (i * epochInterval).toString();
+      // Other points follow the interval - calculate only when needed
+      return Math.floor((i * epochInterval)).toString();
     });
     
     return {
@@ -152,16 +156,20 @@ export default React.memo(function Neuron({ neuron, isRealigning }: { neuron: Ne
         {
           label: 'Activation',
           data: activationHistory,
-          borderColor: '#1a66e6', // Vibrant blue - matches neurons
-          backgroundColor: 'rgba(26, 102, 230, 0.15)',
+          borderColor: '#1971c2', // Vibrant deep blue - matches neuron color
+          backgroundColor: 'rgba(25, 113, 194, 0.15)',
           tension: 0.2,
-        },
-      ],
+        }
+      ]
     };
-  }, [neuron.weightHistory, neuron.biasHistory, neuron.activationHistory, neuron.weight, neuron.bias, neuron.activation, curr_epoch]);
+  }, [neuron.weightHistory, neuron.biasHistory, neuron.activationHistory, 
+      neuron.weight, neuron.bias, neuron.activation, curr_epoch, showWindow]);
 
   // Prepare connected neurons information
-  const getConnectedNeurons = () => {
+  const connectedNeurons = useMemo(() => {
+    // Skip calculation if window isn't shown
+    if (!showWindow) return [];
+    
     const modelStore = useModelStore.getState();
     const connections = modelStore.connections.filter(
       c => c.startNeuronId === neuron.id || c.endNeuronId === neuron.id
@@ -181,7 +189,12 @@ export default React.memo(function Neuron({ neuron, isRealigning }: { neuron: Ne
         direction: isOutput ? 'output' : 'input'
       };
     });
-  };
+  }, [neuron.id, showWindow, useModelStore]);
+
+  // Get input connections for formula (only when needed)
+  const inputConnections = useMemo(() => {
+    return showWindow ? connectedNeurons.filter(conn => conn.direction === 'input') : [];
+  }, [connectedNeurons, showWindow]);
 
   // Format neuron title for the window
   const getNeuronTitle = () => {
@@ -190,153 +203,150 @@ export default React.memo(function Neuron({ neuron, isRealigning }: { neuron: Ne
   };
 
   // Generate LaTeX formula for the neuron
-  const getNeuronFormula = () => {
-    const connectedNeurons = getConnectedNeurons();
-    const inputConnections = connectedNeurons.filter(conn => conn.direction === 'input');
+  const getNeuronFormula = useCallback(() => {
+    // Don't generate formula if window isn't shown
+    if (!showWindow) return '';
     
-    // If no input connections or not a hidden/output neuron, return empty string
-    if (inputConnections.length === 0 || neuron.type === 'input') {
+    // If not a hidden/output neuron, return empty string
+    if (neuron.type === 'input') {
       return '';
     }
     
     // Create the formula based on activation function
     let activationFuncDisplay = '';
-    let activationFuncLatex = '';
     switch (neuron.activationFunction) {
-      case 'sigmoid':
-        activationFuncDisplay = '\\sigma';
-        activationFuncLatex = '\\sigma(z) = \\frac{1}{1 + e^{-z}}';
-        break;
-      case 'relu':
-        activationFuncDisplay = '\\text{ReLU}';
-        activationFuncLatex = '\\text{ReLU}(z) = \\max(0, z)';
-        break;
-      case 'tanh':
-        activationFuncDisplay = '\\tanh';
-        activationFuncLatex = '\\tanh(z) = \\frac{e^z - e^{-z}}{e^z + e^{-z}}';
-        break;
-      case 'softmax':
-        activationFuncDisplay = '\\text{softmax}';
-        activationFuncLatex = '\\text{softmax}(z_i) = \\frac{e^{z_i}}{\\sum_j e^{z_j}}';
-        break;
-      default:
-        activationFuncDisplay = neuron.activationFunction;
-        activationFuncLatex = '\\text{activation}(z)';
+      case 'sigmoid': activationFuncDisplay = '\\sigma'; break;
+      case 'relu': activationFuncDisplay = '\\text{ReLU}'; break;
+      case 'tanh': activationFuncDisplay = '\\tanh'; break;
+      case 'softmax': activationFuncDisplay = '\\text{softmax}'; break;
+      default: activationFuncDisplay = neuron.activationFunction;
     }
     
-    // Build the weighted sum formula
-    const weightedSumTerms = inputConnections.map((conn, idx) => {
-      const weight = conn.rawWeight.toFixed(4);
-      const prefix = parseFloat(weight) >= 0 ? '+' : ''; // Add + for positive values except first term
-      
-      // Get a clean neuron ID for display
-      const neuronShortId = conn.id.split('-').slice(-2).join('-');
-      
-      return `${idx === 0 ? weight : prefix + weight} \\cdot x_{${neuronShortId}}`;
-    });
-    
-    // Add bias term
-    const biasValue = neuron.bias.toFixed(4);
-    const biasWithSign = neuron.bias >= 0 ? `+ ${biasValue}` : `${biasValue}`;
-    
-    // Final formula - use a simpler format with separate math blocks
+    // Simplify formula to reduce rendering complexity
+    // Just show the general form rather than all individual weights
     return `
 Neuron Formula:
 
 $a = ${activationFuncDisplay}(z)$
 
-$z = ${weightedSumTerms.join(' ')} ${biasWithSign}$
+$z = w_1x_1 + w_2x_2 + ... + w_nx_n + b$
 
 Where:
-
-$${activationFuncLatex}$
-
-$a = \\text{neuron output}$
+$b = ${neuron.bias.toFixed(4)}$ (bias)
     `;
-  };
+  }, [neuron.activationFunction, neuron.bias, neuron.type, showWindow]);
 
-  // Configure the Chart.js options
-  const options = {
+  // Memoize the actual LaTeX content to prevent recalculation
+  const latexContent = useMemo(() => {
+    return showWindow ? getNeuronFormula() : '';
+  }, [showWindow, getNeuronFormula]);
+
+  // Configure the Chart.js options - optimize for performance
+  const options = useMemo(() => ({
     responsive: true,
     maintainAspectRatio: false,
     animation: {
-      duration: 100, // Faster animations for better performance
+      duration: 0, // Disable animations entirely for better performance
     },
     plugins: {
       legend: {
+        display: true,
         position: 'top' as const,
         labels: {
-          boxWidth: 10,
-          padding: 10,
-          font: {
-            size: 10,
-          },
+          boxWidth: 8,
+          padding: 8,
+          font: { size: 9 },
         },
       },
       tooltip: {
+        enabled: true, // Can be disabled for even better performance
         callbacks: {
           title: (context: any) => {
             const index = context[0].dataIndex;
-            // For first point, show "Initial"
             if (index === 0) return 'Initial';
-            // For last point in training, show "Current (Epoch X)"
             if (index === context[0].dataset.data.length - 1) 
               return `Current (Epoch ${curr_epoch})`;
-            // Otherwise show the epoch number
             return `Epoch ${context[0].label}`;
           },
-          label: (context: any) => {
-            let label = context.dataset.label || '';
-            if (label) {
-              label += ': ';
-            }
-            if (context.parsed.y !== null) {
-              label += context.parsed.y.toFixed(4);
-            }
-            return label;
-          }
         }
       },
     },
+    elements: {
+      point: {
+        radius: 1, // Smaller points
+        hoverRadius: 3, // Smaller hover radius
+      },
+      line: {
+        borderWidth: 1, // Thinner lines
+      }
+    },
     scales: {
       x: {
-        title: {
-          display: true,
-          text: 'Epoch',
-          font: {
-            size: 10,
-          },
-        },
         ticks: {
           autoSkip: true,
-          maxTicksLimit: 8, // Limit the number of ticks shown
-          font: {
-            size: 8, // Smaller font for x-axis ticks
-          },
+          maxTicksLimit: 5, // Even fewer ticks
+          font: { size: 8 },
         },
+        grid: {
+          display: false, // Hide grid lines
+        }
       },
       y: {
-        title: {
-          display: true,
-          text: 'Value',
-          font: {
-            size: 10,
-          },
-        },
         ticks: {
-          font: {
-            size: 8, // Smaller font for y-axis ticks
-          },
+          font: { size: 8 },
         },
+        grid: {
+          display: false, // Hide grid lines
+        }
       },
     },
-  };
+  }), [curr_epoch]);
 
   const getValueColorClass = (value: number) => {
     if (value > 0) return 'text-green-500'; // Brighter green for positive
     if (value < 0) return 'text-red-500'; // Brighter red for negative
     return 'text-gray-400';
   };
+
+  // Optimize connected neurons display to only show a limited number
+  const displayedConnections = useMemo(() => {
+    // Limit to at most 10 connections to prevent rendering lag
+    const MAX_CONNECTIONS = 10;
+    
+    // Sort connections by weight magnitude (strongest first)
+    const sortedConnections = [...connectedNeurons].sort((a, b) => 
+      Math.abs(b.rawWeight) - Math.abs(a.rawWeight)
+    );
+    
+    // Return at most MAX_CONNECTIONS connections
+    return sortedConnections.slice(0, MAX_CONNECTIONS);
+  }, [connectedNeurons]);
+  
+  // Memoize connection table rows to prevent unnecessary re-renders
+  const connectionTableRows = useMemo(() => {
+    if (!showWindow) return null;
+    
+    return displayedConnections.map((conn, i) => (
+      <tr key={i} className="border-b border-gray-800">
+        <td className="px-2 py-1">{conn.id.split('-').slice(-2).join('-')}</td>
+        <td className="px-2 py-1 capitalize">{conn.type}</td>
+        <td className="px-2 py-1 capitalize">{conn.direction}</td>
+        <td className="px-2 py-1">
+          <span 
+            className={`px-1 rounded ${
+              conn.strength > 0.7 ? 'bg-green-600' :
+              conn.strength > 0.55 ? 'bg-green-500' :
+              conn.strength < 0.3 ? 'bg-red-600' :
+              conn.strength < 0.45 ? 'bg-red-500' :
+              'bg-blue-100 text-gray-800'
+            }`}
+          >
+            {conn.rawWeight.toFixed(3)}
+          </span>
+        </td>
+      </tr>
+    ));
+  }, [displayedConnections, showWindow]);
 
   return (
     <>
@@ -368,7 +378,7 @@ $a = \\text{neuron output}$
           graphData={graphData}
           graphTitle="Neuron Properties Over Time"
           customGraphOptions={options}
-          latexContent={getNeuronFormula()}
+          latexContent={latexContent}
           initialPosition={{ x: 100, y: 0 }}
         >
           <div className="neuron-info">
@@ -409,26 +419,7 @@ $a = \\text{neuron output}$
                   </tr>
                 </thead>
                 <tbody>
-                  {getConnectedNeurons().map((conn, i) => (
-                    <tr key={i} className="border-b border-gray-800">
-                      <td className="px-2 py-1">{conn.id.split('-').slice(-2).join('-')}</td>
-                      <td className="px-2 py-1 capitalize">{conn.type}</td>
-                      <td className="px-2 py-1 capitalize">{conn.direction}</td>
-                      <td className="px-2 py-1">
-                        <span 
-                          className={`px-1 rounded ${
-                            conn.strength > 0.7 ? 'bg-green-600' :
-                            conn.strength > 0.55 ? 'bg-green-500' :
-                            conn.strength < 0.3 ? 'bg-red-600' :
-                            conn.strength < 0.45 ? 'bg-red-500' :
-                            'bg-blue-100 text-gray-800'
-                          }`}
-                        >
-                          {conn.rawWeight.toFixed(4)}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  {connectionTableRows}
                 </tbody>
               </table>
             </div>
@@ -455,15 +446,40 @@ $a = \\text{neuron output}$
     </>
   )
 }, (prevProps, nextProps) => {
-  // Custom comparison function for React.memo
-  // Only re-render if these specific props changed
-  return (
-    prevProps.isRealigning === nextProps.isRealigning &&
-    prevProps.neuron.id === nextProps.neuron.id &&
-    prevProps.neuron.position.x === nextProps.neuron.position.x &&
-    prevProps.neuron.position.y === nextProps.neuron.position.y &&
-    prevProps.neuron.position.z === nextProps.neuron.position.z &&
-    prevProps.neuron.activation === nextProps.neuron.activation &&
-    prevProps.neuron.bias === nextProps.neuron.bias
-  );
+  // Custom comparison function for React.memo to minimize re-renders
+  // Only re-render in these specific cases:
+  
+  // Always re-render if realignment state changes
+  if (prevProps.isRealigning !== nextProps.isRealigning) {
+    return false;
+  }
+  
+  // Different neuron IDs require re-render
+  if (prevProps.neuron.id !== nextProps.neuron.id) {
+    return false;
+  }
+  
+  // Check position changes (needed for proper positioning)
+  if (prevProps.neuron.position.x !== nextProps.neuron.position.x ||
+      prevProps.neuron.position.y !== nextProps.neuron.position.y ||
+      prevProps.neuron.position.z !== nextProps.neuron.position.z) {
+    return false;
+  }
+  
+  // Only check weight, bias or activation when a window is open
+  // This prevents unnecessary re-renders when the window is closed
+  // and these values are updated during training
+  const hasOpenWindow = nextProps.neuron.isWindowOpen;
+  
+  if (hasOpenWindow) {
+    // Check for changes in values that affect visualization
+    if (prevProps.neuron.weight !== nextProps.neuron.weight ||
+        prevProps.neuron.bias !== nextProps.neuron.bias ||
+        prevProps.neuron.activation !== nextProps.neuron.activation) {
+      return false;
+    }
+  }
+  
+  // If none of the above conditions triggered a re-render, skip rendering
+  return true;
 });
