@@ -266,11 +266,14 @@ const SinePreview = () => {
 };
 
 const MNISTPreview = ({ trainingData }: { trainingData: { xs: tf.Tensor; ys: tf.Tensor } | null }) => {
-    if (!trainingData) return <p className="font-mono text-xs text-zinc-500">MNIST.DATA.LOADING...</p>;
-
+    // Initialize hooks first before any conditional returns
     const canvasRefs = React.useRef<(HTMLCanvasElement | null)[]>([]);
-
+    
+    // Use useEffect unconditionally
     React.useEffect(() => {
+        // Skip processing if no training data
+        if (!trainingData) return;
+        
         const renderImages = async () => {
             const numImages = 5;
             const imageTensor = trainingData.xs.slice([0, 0], [numImages, 784]);
@@ -294,9 +297,12 @@ const MNISTPreview = ({ trainingData }: { trainingData: { xs: tf.Tensor; ys: tf.
                 }
             }
         };
-
+        
         renderImages();
     }, [trainingData]);
+    
+    // Return early after hooks are declared
+    if (!trainingData) return <p className="font-mono text-xs text-zinc-500">MNIST.DATA.LOADING...</p>;
 
     return (
         <div className="flex flex-wrap gap-2 justify-center">

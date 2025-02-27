@@ -91,7 +91,7 @@ const NeuralNetwork = React.memo(() => {
       
       return startNeuron.layer !== 0;
     });
-  }, [connections, visualNeurons, useInputLayerBox, selectedDataset]);
+  }, [connections, visualNeurons, useInputLayerBox]);
 
   // Create input-to-hidden connections for box mode
   const inputBoxConnections = useMemo(() => {

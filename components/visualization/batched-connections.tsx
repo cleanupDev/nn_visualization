@@ -211,4 +211,7 @@ const BatchedConnections = React.memo(({
   return true;
 })
 
+// Add display name to fix the ESLint error
+BatchedConnections.displayName = 'BatchedConnections';
+
 export default BatchedConnections; 

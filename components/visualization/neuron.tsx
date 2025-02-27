@@ -106,7 +106,7 @@ export default React.memo(function Neuron({ neuron, isRealigning }: { neuron: Ne
     // Reduce console logging
     // console.log('Neuron clicked:', neuron.id);
     setShowWindow(true);
-  }, [neuron.id])
+  }, [])
 
   useFrame(() => {
     if (meshRef.current) {
