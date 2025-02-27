@@ -1,31 +1,33 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useEffect, useRef } from 'react'
 import { useThree } from '@react-three/fiber'
 import { Color, Vector3, InstancedMesh, Matrix4, MeshBasicMaterial, BufferGeometry, CylinderGeometry } from 'three'
 import { Connection as ConnectionType, NeuronVisual } from '../store'
 
+// Cache for geometries to avoid recreating them
+const geometryCache = new Map<string, CylinderGeometry>();
+
 // Component for efficiently rendering many connections at once
-export default function BatchedConnections({ 
+const BatchedConnections = React.memo(({ 
   connections, 
   neurons 
 }: { 
   connections: ConnectionType[]; 
   neurons: NeuronVisual[] 
-}) {
+}) => {
   const { gl } = useThree()
+  const instancedMeshRefs = useRef<(InstancedMesh | null)[]>([]);
   
   // Create optimized instanced meshes for connections grouped by similar appearance
   const { 
     geometries, 
     materials,
-    matrices, 
-    counts
+    counts,
+    connectionGroups
   } = useMemo(() => {
     // Skip processing if we don't have connections or neurons
     if (connections.length === 0 || neurons.length === 0) {
-      return { geometries: [], materials: [], matrices: [], counts: [] }
+      return { geometries: [], materials: [], counts: [], connectionGroups: [] }
     }
-
-    console.log(`Batching ${connections.length} connections for efficient rendering`)
     
     // Group connections by strength range for batching
     const strengthRanges = [
@@ -39,7 +41,8 @@ export default function BatchedConnections({
     // Create a multi-group structure for batching similar connections
     const connectionGroups = strengthRanges.map(range => ({ 
       range, 
-      connections: [] as ConnectionType[] 
+      connections: [] as ConnectionType[],
+      matrices: [] as Matrix4[]
     }))
     
     // Classify each connection into its appropriate group
@@ -52,25 +55,21 @@ export default function BatchedConnections({
       }
     })
     
-    // Prepare arrays to hold our geometries, materials, matrices and counts for each group
+    // Prepare arrays to hold our geometries, materials, and counts for each group
     const geometries: BufferGeometry[] = []
     const materials: MeshBasicMaterial[] = []
-    const matrices: Matrix4[][] = []
     const counts: number[] = []
     
     // Process only groups that have connections
     connectionGroups
       .filter(group => group.connections.length > 0)
-      .forEach((group, groupIndex) => {
+      .forEach((group) => {
         // Create a material for this group
         const material = new MeshBasicMaterial({ 
           color: group.range.color,
           transparent: true,
           opacity: 0.8
         })
-        
-        // Store the group's matrices
-        const groupMatrices: Matrix4[] = []
         
         // Process all connections in this group
         group.connections.forEach(connection => {
@@ -139,25 +138,54 @@ export default function BatchedConnections({
             matrix.setPosition(midpoint)
             
             // Add the matrix to our group
-            groupMatrices.push(matrix)
+            group.matrices.push(matrix)
           }
         })
         
         // Only create a geometry and material if we have valid connections
-        if (groupMatrices.length > 0) {
-          // Create a cylinder for the connection lines
-          const geometry = new CylinderGeometry(1, 1, 1, 6, 1, false)
+        if (group.matrices.length > 0) {
+          // Use cached cylinder geometry or create a new one
+          const cylinderKey = '1,1,6,1';
+          let geometry: CylinderGeometry;
           
-          // Store the geometry, material, matrices and count
+          if (geometryCache.has(cylinderKey)) {
+            geometry = geometryCache.get(cylinderKey)!;
+          } else {
+            geometry = new CylinderGeometry(1, 1, 1, 6, 1, false);
+            geometryCache.set(cylinderKey, geometry);
+          }
+          
+          // Store the geometry, material and count
           geometries.push(geometry)
           materials.push(material)
-          matrices.push(groupMatrices)
-          counts.push(groupMatrices.length)
+          counts.push(group.matrices.length)
         }
       })
     
-    return { geometries, materials, matrices, counts }
+    return { geometries, materials, counts, connectionGroups }
   }, [connections, neurons])
+  
+  // Update matrices for the instanced meshes
+  useEffect(() => {
+    // Only run if we have instanced mesh refs
+    if (instancedMeshRefs.current.length === 0) return;
+    
+    connectionGroups.forEach((group, groupIndex) => {
+      const mesh = instancedMeshRefs.current[groupIndex];
+      if (!mesh) return;
+      
+      // Update each matrix in the instanced mesh
+      group.matrices.forEach((matrix, matrixIndex) => {
+        mesh.setMatrixAt(matrixIndex, matrix);
+      });
+      
+      // Mark the instance matrix as needs update
+      mesh.instanceMatrix.needsUpdate = true;
+    });
+  }, [connectionGroups]);
+  
+  // Skip rendering if no connections
+  if (geometries.length === 0) return null;
   
   // Render the instanced meshes
   return (
@@ -165,21 +193,22 @@ export default function BatchedConnections({
       {geometries.map((geometry, index) => (
         <instancedMesh
           key={`connection-batch-${index}`}
+          ref={el => instancedMeshRefs.current[index] = el}
           args={[geometry, materials[index], counts[index]]}
-        >
-          {matrices[index].map((matrix, matrixIndex) => {
-            // We need to set the matrix for each instance
-            // This is done in a useEffect hook to ensure it's only done after the instancedMesh is created
-            return (
-              <primitive
-                key={`matrix-${matrixIndex}`}
-                object={matrix}
-                attach={`instanceMatrix[${matrixIndex}]`}
-              />
-            )
-          })}
-        </instancedMesh>
+          frustumCulled={true}
+        />
       ))}
     </>
   )
-} 
+}, (prevProps, nextProps) => {
+  // Custom comparison for memo to prevent unnecessary rerenders
+  if (prevProps.connections.length !== nextProps.connections.length) return false;
+  if (prevProps.neurons.length !== nextProps.neurons.length) return false;
+  
+  // Only do a deep check if really necessary - this is performance critical
+  // For this case, mostly check if connection counts match which is good enough
+  // for most use cases rather than comparing every connection
+  return true;
+})
+
+export default BatchedConnections; 

@@ -2,6 +2,7 @@ import React, { useMemo } from 'react'
 import { Box, Line, Html, Text, RoundedBox } from '@react-three/drei'
 import { Color, Vector3 } from 'three'
 import { NeuronVisual, Connection as ConnectionType } from '../store'
+import { useModelStore } from '../store'
 
 interface InputLayerBoxProps {
   inputNeurons: NeuronVisual[]
@@ -14,6 +15,10 @@ export default function InputLayerBox({
   connections, 
   outputNeurons 
 }: InputLayerBoxProps) {
+  // Get the dataset to apply specific optimizations for MNIST
+  const selectedDataset = useModelStore(state => state.selectedDataset)
+  const isMNIST = selectedDataset === 'mnist'
+  
   // Calculate the dimensions of the box based on both input neurons and hidden layer
   const { boxCenter, boxSize, inputDimensions } = useMemo(() => {
     if (inputNeurons.length === 0 || outputNeurons.length === 0) {
@@ -38,19 +43,19 @@ export default function InputLayerBox({
     const centerX = (minX + maxX) / 2
     const centerY = (minY + maxY) / 2
     
+    // For MNIST, use a specific size that looks better with the 784 neurons
     // Make the box narrower to match neuron proportions better
-    // Using a smaller value (1.0 instead of previous width calculation)
-    const sizeX = 1.0
+    const sizeX = isMNIST ? 1.2 : 1.0
     
     // Make sure height matches or slightly exceeds the hidden layer height
-    const sizeY = Math.max(maxY - minY + 1, outputNeurons.length * 1.2)
+    const sizeY = Math.max(maxY - minY + 1, outputNeurons.length * (isMNIST ? 1.4 : 1.2))
     
     return { 
       boxCenter: new Vector3(centerX, centerY, 0), 
-      boxSize: new Vector3(sizeX, sizeY, 0.5),
+      boxSize: new Vector3(sizeX, sizeY, isMNIST ? 0.6 : 0.5),
       inputDimensions: inputNeurons.length
     }
-  }, [inputNeurons, outputNeurons])
+  }, [inputNeurons, outputNeurons, isMNIST])
 
   // Generate connection lines from the box to the first hidden layer
   const connectionLines = useMemo(() => {
@@ -75,17 +80,28 @@ export default function InputLayerBox({
       
       // If we have a sample connection, use its properties
       if (sampleConnection) {
-        // Use same color logic as in Connection component
-        if (sampleConnection.strength > 0.7) {
-          color = new Color(0.0, 0.7, 0.2) // Strong positive
+        // Use improved color logic as in updated Connection component
+        if (sampleConnection.strength > 0.85) {
+          // Very strong positive - bright green
+          color = new Color(0.0, 0.8, 0.3);
+        } else if (sampleConnection.strength > 0.7) {
+          // Strong positive
+          color = new Color(0.0, 0.7, 0.2);
         } else if (sampleConnection.strength > 0.55) {
-          color = new Color(0.3, 0.7, 0.3) // Weak positive
+          // Weak positive
+          color = new Color(0.3, 0.7, 0.3);
         } else if (sampleConnection.strength >= 0.45) {
-          color = new Color(0.3, 0.35, 0.45) // Neutral
+          // Neutral
+          color = new Color(0.3, 0.35, 0.45);
         } else if (sampleConnection.strength >= 0.3) {
-          color = new Color(0.7, 0.3, 0.3) // Weak negative
+          // Weak negative
+          color = new Color(0.7, 0.3, 0.3);
+        } else if (sampleConnection.strength >= 0.15) {
+          // Strong negative
+          color = new Color(0.7, 0.1, 0.1);
         } else {
-          color = new Color(0.7, 0.1, 0.1) // Strong negative
+          // Very strong negative
+          color = new Color(0.8, 0.0, 0.0);
         }
         
         // Use same width logic as in Connection component
@@ -102,6 +118,18 @@ export default function InputLayerBox({
     })
   }, [boxCenter, boxSize, outputNeurons, connections])
 
+  // Create a dataset-specific label
+  const datasetLabel = useMemo(() => {
+    if (isMNIST) {
+      return `MNIST Input\nInput.Dim ${inputDimensions}\n(28×28 image)`
+    }
+    return `Input-Layer\nInput.Dim ${inputDimensions}`
+  }, [inputDimensions, isMNIST])
+
+  // Adjust box color for MNIST
+  const boxColor = isMNIST ? "#2a6dd9" : "#3a86ff"
+  const boxOpacity = isMNIST ? 0.8 : 0.7
+
   // Use Text component from drei instead of Html for sharper text
   return (
     <>
@@ -114,9 +142,9 @@ export default function InputLayerBox({
           smoothness={4} // Optional: Subdivisions of the roundness
         >
           <meshStandardMaterial 
-            color="#3a86ff" 
+            color={boxColor} 
             transparent 
-            opacity={0.7}
+            opacity={boxOpacity}
             roughness={0.3}
             metalness={0.2}
           />
@@ -124,15 +152,15 @@ export default function InputLayerBox({
         
         {/* Use Text component for sharper text rendering */}
         <Text
-          position={[boxCenter.x - boxSize.x/2 - 1.2, boxCenter.y, boxCenter.z]}
-          fontSize={0.15}
+          position={[boxCenter.x - boxSize.x/2 - (isMNIST ? 1.5 : 1.2), boxCenter.y, boxCenter.z]}
+          fontSize={isMNIST ? 0.18 : 0.15}
           color="white"
           anchorX="center"
           anchorY="middle"
-          maxWidth={1.5}
+          maxWidth={1.8}
           lineHeight={1.5}
         >
-          Input-Layer{'\n'}Input.Dim {inputDimensions}
+          {datasetLabel}
         </Text>
       </group>
       

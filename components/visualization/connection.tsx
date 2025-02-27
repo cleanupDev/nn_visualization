@@ -1,102 +1,143 @@
-import React, { useMemo, useEffect, useState } from 'react'
+import React, { useMemo } from 'react'
 import { Line } from '@react-three/drei'
-import { Color } from 'three'
-import { Connection as ConnectionType, NeuronVisual, useModelStore } from '../store'
+import { Color, Vector3 } from 'three'
+import { Connection as ConnectionType, NeuronVisual } from '../store'
 
-export default function Connection({ connection, neurons }: { connection: ConnectionType; neurons: NeuronVisual[] }) {
-  const startNeuron = neurons.find(n => n.id === connection.startNeuronId)
-  const endNeuron = neurons.find(n => n.id === connection.endNeuronId)
-  
-  // Track connection strength changes over time
-  const [strengthHistory, setStrengthHistory] = useState<number[]>([connection.strength])
-  const { is_training, curr_epoch } = useModelStore()
-  
-  // Track previous epoch to detect new training sessions
-  const [prevEpoch, setPrevEpoch] = useState(0)
-  
-  // Reset strength history on new training sessions
-  useEffect(() => {
-    // Detect new training session (epoch goes down or resets to 0)
-    const isNewTrainingSession = 
-      (!is_training && curr_epoch === 0 && prevEpoch > 0) || 
-      (curr_epoch < prevEpoch && !is_training);
+// Simple memoized component to render a connection between neurons
+// Use memo to prevent unnecessary re-renders
+const Connection = React.memo(({ 
+  connection, 
+  neurons 
+}: { 
+  connection: ConnectionType; 
+  neurons: NeuronVisual[] 
+}) => {
+  // Find the connected neurons
+  const { startNeuron, endNeuron, connectionProperties } = useMemo(() => {
+    const startNeuron = neurons.find(n => n.id === connection.startNeuronId)
+    const endNeuron = neurons.find(n => n.id === connection.endNeuronId)
     
-    if (isNewTrainingSession) {
-      setStrengthHistory([connection.strength]);
-    }
-    
-    // Update previous epoch
-    setPrevEpoch(curr_epoch);
-  }, [curr_epoch, is_training, connection.strength, prevEpoch]);
-  
-  // Update strength history when connection strength changes
-  useEffect(() => {
-    // Only record during training
-    if (is_training) {
-      setStrengthHistory(prev => {
-        const newHistory = [...prev, connection.strength];
-        // Keep last 10 values
-        return newHistory.slice(-10);
-      });
-      
-      // Debug output to console - only log some connections to avoid flooding
-      if (connection.id.includes('input-0-0')) {
-        console.log(`Connection strength updated: ${connection.id} -> ${connection.strength.toFixed(4)}`);
+    if (!startNeuron || !endNeuron) {
+      return { 
+        startNeuron: null, 
+        endNeuron: null, 
+        connectionProperties: null 
       }
     }
-  }, [connection.strength, connection.id, is_training]);
+    
+    // Create vectors for line endpoints
+    const startPosition = new Vector3(
+      startNeuron.position.x, 
+      startNeuron.position.y, 
+      startNeuron.position.z
+    )
+    
+    const endPosition = new Vector3(
+      endNeuron.position.x, 
+      endNeuron.position.y, 
+      endNeuron.position.z
+    )
+    
+    // Skip if points are too close together
+    if (startPosition.distanceTo(endPosition) < 0.01) {
+      return {
+        startNeuron: null,
+        endNeuron: null,
+        connectionProperties: null
+      }
+    }
 
-  // Map the connection strength to a color using a vibrant red-green gradient with darker tones
-  // 0.0-0.3: Strong negative (deep dark red)
-  // 0.3-0.45: Weak negative (darker red)
-  // 0.45-0.55: Neutral (darker blue-gray)
-  // 0.55-0.7: Weak positive (darker green)
-  // 0.7-1.0: Strong positive (deep dark green)
-  const color = useMemo(() => {
-    if (connection.strength > 0.7) {
+    // Calculate line width based on connection strength
+    // Normalize the weight for visualization (0.5 is neutral)
+    const strengthDiff = Math.abs(connection.strength - 0.5) * 2
+    const lineWidth = 2.0 + strengthDiff * 7 // Use appropriate scale for Line component
+    
+    // Determine color based on connection strength - improved visualization for MNIST
+    let color: Color;
+    
+    if (connection.strength > 0.85) {
+      // Very strong positive - bright green
+      color = new Color(0.0, 0.8, 0.3);
+    } else if (connection.strength > 0.7) {
       // Strong positive - deeper green
-      return new Color(0.0, 0.7, 0.2); // Darker green
+      color = new Color(0.0, 0.7, 0.2);
     } else if (connection.strength > 0.55) {
       // Weak positive - darker light green
-      return new Color(0.3, 0.7, 0.3); // Darker green
+      color = new Color(0.3, 0.7, 0.3);
     } else if (connection.strength >= 0.45) {
       // Neutral - darker blue-gray
-      return new Color(0.3, 0.35, 0.45); // Darker blue-gray instead of light blue-white
+      color = new Color(0.3, 0.35, 0.45);
     } else if (connection.strength >= 0.3) {
       // Weak negative - darker red
-      return new Color(0.7, 0.3, 0.3); // Darker red
-    } else {
+      color = new Color(0.7, 0.3, 0.3);
+    } else if (connection.strength >= 0.15) {
       // Strong negative - deep dark red
-      return new Color(0.7, 0.1, 0.1); // Darker red
+      color = new Color(0.7, 0.1, 0.1);
+    } else {
+      // Very strong negative - bright red
+      color = new Color(0.8, 0.0, 0.0);
     }
-  }, [connection.strength])
-
-  // Scale line width based on connection strength with more noticeable differences
-  const lineWidth = useMemo(() => {
-    const strengthDiff = Math.abs(connection.strength - 0.5) * 2; // Map to 0-1
-    return 2.0 + strengthDiff * 7; // Thicker base width (2.0) + up to 7x for strong connections
-  }, [connection.strength]);
-
-  // If either neuron is missing, don't render the connection
-  if (!startNeuron || !endNeuron) {
-    return null
-  }
-
-  // Check for significant strength change to aid debugging
-  const hasSignificantChange = strengthHistory.length > 1 && 
-    Math.abs(strengthHistory[strengthHistory.length - 1] - strengthHistory[0]) > 0.1;
-
+    
+    return {
+      startNeuron,
+      endNeuron,
+      connectionProperties: {
+        points: [startPosition, endPosition],
+        color,
+        lineWidth,
+        // Prevent transparency for better visibility
+        transparent: false,
+        dashed: false
+      }
+    }
+  }, [connection, neurons])
+  
+  // Skip rendering if invalid
+  if (!startNeuron || !endNeuron || !connectionProperties) return null
+  
   return (
     <Line
-      points={[startNeuron.position, endNeuron.position]}
-      color={color}
-      lineWidth={lineWidth}
+      points={connectionProperties.points}
+      color={connectionProperties.color}
+      lineWidth={connectionProperties.lineWidth}
+      dashed={connectionProperties.dashed}
+      transparent={connectionProperties.transparent}
       onClick={() => {
-        console.log(`Connection: ${startNeuron.id} → ${endNeuron.id}`);
-        console.log(`Strength: ${connection.strength.toFixed(4)}`);
-        console.log(`History: ${strengthHistory.map(s => s.toFixed(2)).join(' → ')}`);
-        console.log(`Has changed: ${hasSignificantChange ? 'YES' : 'no'}`);
+        // Keep click handler minimal for performance
+        console.log(`Connection: ${startNeuron.id} → ${endNeuron.id}, Strength: ${connection.strength.toFixed(4)}, Weight: ${connection.rawWeight?.toFixed(4) || 'N/A'}`);
       }}
     />
   )
-}
+}, (prevProps, nextProps) => {
+  // Deep equality check for memoization
+  // Only re-render if something important changed
+  if (prevProps.connection.id !== nextProps.connection.id) return false;
+  if (prevProps.connection.strength !== nextProps.connection.strength) return false;
+  
+  // Check if neuron positions have changed
+  const prevStart = prevProps.neurons.find(n => n.id === prevProps.connection.startNeuronId);
+  const prevEnd = prevProps.neurons.find(n => n.id === prevProps.connection.endNeuronId);
+  const nextStart = nextProps.neurons.find(n => n.id === nextProps.connection.startNeuronId);
+  const nextEnd = nextProps.neurons.find(n => n.id === nextProps.connection.endNeuronId);
+  
+  if (!prevStart || !prevEnd || !nextStart || !nextEnd) return false;
+  
+  // Check position equality
+  if (
+    prevStart.position.x !== nextStart.position.x ||
+    prevStart.position.y !== nextStart.position.y ||
+    prevStart.position.z !== nextStart.position.z ||
+    prevEnd.position.x !== nextEnd.position.x ||
+    prevEnd.position.y !== nextEnd.position.y ||
+    prevEnd.position.z !== nextEnd.position.z
+  ) {
+    return false;
+  }
+  
+  return true;
+});
+
+// For debugging
+Connection.displayName = 'Connection';
+
+export default Connection

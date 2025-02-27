@@ -28,7 +28,8 @@ ChartJS.register(
   Legend
 )
 
-export default function Neuron({ neuron, isRealigning }: { neuron: NeuronVisual; isRealigning: boolean }) {
+// Memoize the Neuron component to prevent unnecessary re-renders
+export default React.memo(function Neuron({ neuron, isRealigning }: { neuron: NeuronVisual; isRealigning: boolean }) {
   const meshRef = useRef<Mesh>(null)
   const { camera, raycaster, mouse } = useThree()
   const [isDragging, setIsDragging] = useState(false)
@@ -36,8 +37,10 @@ export default function Neuron({ neuron, isRealigning }: { neuron: NeuronVisual;
   const dragPlane = useMemo(() => new Plane(new Vector3(0, 0, 1), 0), [])
   const [showWindow, setShowWindow] = useState(false)
   
-  // Access the global state for real-time updates
-  const { curr_epoch, is_training, toggleNeuronWindow } = useModelStore();
+  // Access the global state for real-time updates - get only what we need
+  const toggleNeuronWindow = useModelStore(state => state.toggleNeuronWindow)
+  const is_training = useModelStore(state => state.is_training)
+  const curr_epoch = useModelStore(state => state.curr_epoch)
   
   // Update window state when it changes
   useEffect(() => {
@@ -45,6 +48,7 @@ export default function Neuron({ neuron, isRealigning }: { neuron: NeuronVisual;
     toggleNeuronWindow(neuron.id, showWindow);
   }, [showWindow, neuron.id, toggleNeuronWindow]);
 
+  // Optimize the animation with reduced recomputation
   const { animatedPosition } = useSpring({
     animatedPosition: isRealigning ? [neuron.position.x, neuron.position.y, neuron.position.z] : [neuron.position.x, neuron.position.y, neuron.position.z],
     config: { mass: 1, tension: 180, friction: 12 }
@@ -68,6 +72,7 @@ export default function Neuron({ neuron, isRealigning }: { neuron: NeuronVisual;
   // Hover emissive - brighter glow on hover
   const hoverEmissive = useMemo(() => emissiveColor.clone().multiplyScalar(2), [emissiveColor]);
 
+  // Optimize pointer event handlers
   const onPointerDown = useCallback((event: ThreeEvent<PointerEvent>) => {
     event.stopPropagation()
     setIsDragging(true)
@@ -81,8 +86,10 @@ export default function Neuron({ neuron, isRealigning }: { neuron: NeuronVisual;
     if (isDragging) {
       raycaster.setFromCamera(mouse, camera)
       const intersectionPoint = new Vector3()
+      // Only log if actually needed for debugging
       if (raycaster.ray.intersectPlane(dragPlane, intersectionPoint)) {
-        console.log('Drag intersection point:', intersectionPoint)
+        // Commented out to reduce console spam
+        // console.log('Drag intersection point:', intersectionPoint)
       }
     }
   }, [isDragging, camera, mouse, dragPlane, raycaster])
@@ -96,7 +103,8 @@ export default function Neuron({ neuron, isRealigning }: { neuron: NeuronVisual;
   }, [])
 
   const onClick = useCallback(() => {
-    console.log('Neuron clicked:', neuron.id);
+    // Reduce console logging
+    // console.log('Neuron clicked:', neuron.id);
     setShowWindow(true);
   }, [neuron.id])
 
@@ -441,4 +449,17 @@ $a = \\text{neuron output}$
       </Html>
     )}
     </>
-)}
+  )
+}, (prevProps, nextProps) => {
+  // Custom comparison function for React.memo
+  // Only re-render if these specific props changed
+  return (
+    prevProps.isRealigning === nextProps.isRealigning &&
+    prevProps.neuron.id === nextProps.neuron.id &&
+    prevProps.neuron.position.x === nextProps.neuron.position.x &&
+    prevProps.neuron.position.y === nextProps.neuron.position.y &&
+    prevProps.neuron.position.z === nextProps.neuron.position.z &&
+    prevProps.neuron.activation === nextProps.neuron.activation &&
+    prevProps.neuron.bias === nextProps.neuron.bias
+  );
+});
