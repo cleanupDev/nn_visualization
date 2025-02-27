@@ -695,10 +695,24 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   },
   updateConnections: () => {
     const state = get();
-    const connections: Connection[] = [];
-    const { visualNeurons, neurons, fallbackWeightsCache } = state;
+    const { visualNeurons, neurons, fallbackWeightsCache, connections: existingConnections } = state;
+    
+    // Skip update if there are no neurons to visualize
+    if (visualNeurons.length === 0) {
+      console.log('Skipping connections update: No neurons to visualize');
+      return;
+    }
+    
+    // Create a map of existing connections for quick lookups
+    const existingConnectionsMap = new Map();
+    existingConnections.forEach(conn => {
+      existingConnectionsMap.set(conn.id, conn);
+    });
     
     console.log(`Updating connections: ${neurons.length} model neurons, ${visualNeurons.length} visual neurons`);
+    
+    const newConnections: Connection[] = [];
+    let connectionsChanged = false;
     
     // For each layer except the last, connect to the next layer
     for (let layerIndex = 0; layerIndex < state.num_layers + 1; layerIndex++) {
@@ -730,6 +744,10 @@ export const useModelStore = create<ModelStore>((set, get) => ({
           
           let weight = 0;
           let connectionStrength = 0.5; // Default neutral strength
+          let shouldSkip = false;
+          
+          // Check if we already have this connection in our existing set
+          const existingConnection = existingConnectionsMap.get(connectionKey);
           
           if (modelNeuron && modelNeuron.weights && modelNeuron.weights.length > startIndex) {
             // Use the actual weight from the model
@@ -742,8 +760,20 @@ export const useModelStore = create<ModelStore>((set, get) => ({
             // Update the cache with the real weight
             fallbackWeightsCache[connectionKey] = weight;
             
-            if (startIndex === 0 && endIndex === 0) {
-              console.log(`Connection weight (from model): ${startNeuron.id} → ${endNeuron.id}, raw: ${weight.toFixed(6)}, visual: ${connectionStrength.toFixed(4)}`);
+            // Check if this connection has actually changed
+            if (existingConnection && 
+                Math.abs(existingConnection.strength - connectionStrength) < 0.001 &&
+                Math.abs(existingConnection.rawWeight - weight) < 0.001) {
+              // Connection hasn't meaningfully changed, reuse it
+              newConnections.push(existingConnection);
+              shouldSkip = true;
+            } else {
+              // Connection has changed
+              connectionsChanged = true;
+              
+              if (startIndex === 0 && endIndex === 0) {
+                console.log(`Connection weight (from model): ${startNeuron.id} → ${endNeuron.id}, raw: ${weight.toFixed(6)}, visual: ${connectionStrength.toFixed(4)}`);
+              }
             }
           } else {
             // First, check if we already have a fallback weight for this connection
@@ -758,6 +788,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
               // Generate a new random weight and store it in the cache
               weight = Math.random() * 0.2 - 0.1; // Small random weight between -0.1 and 0.1
               fallbackWeightsCache[connectionKey] = weight;
+              connectionsChanged = true;
               
               if (startIndex === 0 && endIndex === 0) {
                 console.log(`Connection weight (new random): ${startNeuron.id} → ${endNeuron.id}, raw: ${weight.toFixed(6)}`);
@@ -774,10 +805,25 @@ export const useModelStore = create<ModelStore>((set, get) => ({
             
             // Calculate connection strength from the weight (cached or new)
             connectionStrength = 1 / (1 + Math.exp(-3 * weight));
+            
+            // Connection might have changed
+            if (existingConnection && 
+                Math.abs(existingConnection.strength - connectionStrength) < 0.001) {
+              // Connection hasn't meaningfully changed, reuse it
+              newConnections.push(existingConnection);
+              shouldSkip = true;
+            } else {
+              connectionsChanged = true;
+            }
           }
           
-          // Always create the connection, even with fallback values
-          connections.push({
+          // Skip to next connection if we're reusing an existing one
+          if (shouldSkip) {
+            return; // This is a forEach, so 'return' acts like 'continue'
+          }
+          
+          // Create a new connection
+          newConnections.push({
             id: connectionKey,
             startNeuronId: startNeuron.id,
             endNeuronId: endNeuron.id,
@@ -788,12 +834,18 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       });
     }
     
+    // Skip update if connections haven't changed
+    if (!connectionsChanged && newConnections.length === existingConnections.length) {
+      console.log(`Connections unchanged (${newConnections.length} connections), skipping update`);
+      return;
+    }
+    
     // Log connection summary
-    console.log(`Created ${connections.length} connections`);
+    console.log(`Created ${newConnections.length} connections ${connectionsChanged ? '(with changes)' : ''}`);
     
     // Update the store with connections and the updated cache
     set({ 
-      connections,
+      connections: newConnections,
       fallbackWeightsCache
     });
   },

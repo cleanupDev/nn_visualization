@@ -111,30 +111,36 @@ const Connection = React.memo(({
 }, (prevProps, nextProps) => {
   // Deep equality check for memoization
   // Only re-render if something important changed
-  if (prevProps.connection.id !== nextProps.connection.id) return false;
-  if (prevProps.connection.strength !== nextProps.connection.strength) return false;
+  // Return true if we DON'T want to re-render
   
-  // Check if neuron positions have changed
-  const prevStart = prevProps.neurons.find(n => n.id === prevProps.connection.startNeuronId);
-  const prevEnd = prevProps.neurons.find(n => n.id === prevProps.connection.endNeuronId);
-  const nextStart = nextProps.neurons.find(n => n.id === nextProps.connection.startNeuronId);
-  const nextEnd = nextProps.neurons.find(n => n.id === nextProps.connection.endNeuronId);
-  
-  if (!prevStart || !prevEnd || !nextStart || !nextEnd) return false;
-  
-  // Check position equality
-  if (
-    prevStart.position.x !== nextStart.position.x ||
-    prevStart.position.y !== nextStart.position.y ||
-    prevStart.position.z !== nextStart.position.z ||
-    prevEnd.position.x !== nextEnd.position.x ||
-    prevEnd.position.y !== nextEnd.position.y ||
-    prevEnd.position.z !== nextEnd.position.z
-  ) {
-    return false;
+  // Optimization: if the IDs match but the connection strength is the same, avoid re-rendering
+  if (prevProps.connection.id === nextProps.connection.id && 
+      prevProps.connection.strength === nextProps.connection.strength) {
+    
+    // Check if neuron positions have changed
+    const prevStart = prevProps.neurons.find(n => n.id === prevProps.connection.startNeuronId);
+    const prevEnd = prevProps.neurons.find(n => n.id === prevProps.connection.endNeuronId);
+    const nextStart = nextProps.neurons.find(n => n.id === nextProps.connection.startNeuronId);
+    const nextEnd = nextProps.neurons.find(n => n.id === nextProps.connection.endNeuronId);
+    
+    if (!prevStart || !prevEnd || !nextStart || !nextEnd) return false;
+    
+    // Check position equality
+    if (
+      prevStart.position.x === nextStart.position.x &&
+      prevStart.position.y === nextStart.position.y &&
+      prevStart.position.z === nextStart.position.z &&
+      prevEnd.position.x === nextEnd.position.x &&
+      prevEnd.position.y === nextEnd.position.y &&
+      prevEnd.position.z === nextEnd.position.z
+    ) {
+      // If all positions are the same and strength is the same, skip re-render
+      return true;
+    }
   }
   
-  return true;
+  // If we get here, we need to re-render
+  return false;
 });
 
 // For debugging

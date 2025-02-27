@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useCallback } from 'react'
+import React, { useEffect, useMemo, useCallback, useRef } from 'react'
 import { useModelStore } from '../store'
 import Neuron from './neuron'
 import Connection from './connection'
@@ -17,6 +17,13 @@ const NeuralNetwork = React.memo(() => {
   const is_training = useModelStore(state => state.is_training)
   const input_neurons = useModelStore(state => state.input_neurons)
   const selectedDataset = useModelStore(state => state.selectedDataset)
+  
+  // Add a connections ref to avoid unnecessary renders
+  const connectionsRef = useRef(connections);
+  
+  // Keep a reference of the last training epoch to avoid unnecessary updates
+  const lastEpochRef = useRef(curr_epoch);
+  const isTrainingRef = useRef(is_training);
 
   // Initialize network when layers change or when component mounts
   useEffect(() => {
@@ -32,10 +39,19 @@ const NeuralNetwork = React.memo(() => {
 
   // Update connections when training progresses - only when needed
   useEffect(() => {
-    if (model && is_training) {
+    // Only update if we're currently training and the epoch has changed
+    if (model && is_training && curr_epoch !== lastEpochRef.current) {
+      // Update our refs to the new values
+      lastEpochRef.current = curr_epoch;
+      isTrainingRef.current = is_training;
       // We don't need to do anything here as connections are updated in the store
+    } else if (!is_training && isTrainingRef.current) {
+      // Training just stopped, update reference
+      isTrainingRef.current = is_training;
+      // Final update after training completes
+      connectionsRef.current = connections;
     }
-  }, [curr_epoch, is_training, model])
+  }, [curr_epoch, is_training, model, connections])
 
   // Global method for external updates
   useEffect(() => {
