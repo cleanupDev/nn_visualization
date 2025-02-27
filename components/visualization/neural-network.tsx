@@ -50,9 +50,9 @@ export default function NeuralNetwork() {
   const useInputLayerBox = true
   
   // Determine if we should use batched rendering based on connection count
-  // Use batched rendering for large networks (like MNIST) with many connections
+  // Only use batched rendering for very large connection counts but not for MNIST
   const useBatchedRendering = useMemo(() => {
-    return connections.length > 1000 || selectedDataset === 'mnist';
+    return connections.length > 1000 && selectedDataset !== 'mnist';
   }, [connections.length, selectedDataset]);
 
   // Filter neurons based on the view mode

@@ -43,7 +43,7 @@ export function SceneControls({ isSidebarOpen }: SceneControlsProps) {
         )}
       >
         <div className="flex items-center gap-1 rounded-md border border-zinc-800 bg-black/90 p-1 backdrop-blur-sm">
-          {/* Mouse Controls - manually controlled tooltip */}
+          {/* Mouse Controls - only opens when clicked */}
           <div className="relative">
             <Button
               variant="ghost"
