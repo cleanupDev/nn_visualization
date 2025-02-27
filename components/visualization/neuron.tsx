@@ -215,6 +215,10 @@ export default React.memo(function Neuron({ neuron, isRealigning }: { neuron: Ne
         activationFuncDisplay = '\\tanh';
         activationFuncLatex = '\\tanh(z) = \\frac{e^z - e^{-z}}{e^z + e^{-z}}';
         break;
+      case 'softmax':
+        activationFuncDisplay = '\\text{softmax}';
+        activationFuncLatex = '\\text{softmax}(z_i) = \\frac{e^{z_i}}{\\sum_j e^{z_j}}';
+        break;
       default:
         activationFuncDisplay = neuron.activationFunction;
         activationFuncLatex = '\\text{activation}(z)';

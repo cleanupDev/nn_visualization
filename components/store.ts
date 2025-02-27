@@ -71,7 +71,7 @@ export interface NeuronVisual {
   activation: number;
   weight: number;
   bias: number;
-  activationFunction: 'sigmoid' | 'relu' | 'tanh';
+  activationFunction: 'sigmoid' | 'relu' | 'tanh' | 'softmax';
   layer: number;
   type: 'hidden' | 'input' | 'output';
   // Add isWindowOpen flag for selective history tracking
@@ -627,7 +627,11 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         activation: 0,
         weight: 0,
         bias: 0,
-        activationFunction: state.selectedDataset === 'sine' ? 'tanh' : 'sigmoid',
+        activationFunction: state.selectedDataset === 'sine' 
+                          ? 'tanh' 
+                          : state.selectedDataset === 'mnist'
+                            ? 'softmax'
+                            : 'sigmoid',
         layer: currentLayer,
         type: 'output', // Explicitly mark as output layer neuron
         weightHistory: [],

@@ -91,7 +91,11 @@ const InferencePanel = () => {
         setLastInferredInput([...inferenceInput]);
         
         // For classification tasks (XOR, MNIST), calculate confidence
-        if (selectedDataset === 'xor' || selectedDataset === 'mnist') {
+        if (selectedDataset === 'xor') {
+          setConfidence(outputValues.map(v => v * 100));
+        } else if (selectedDataset === 'mnist') {
+          // The softmax is now applied in the model's output layer,
+          // so we just need to convert to percentages
           setConfidence(outputValues.map(v => v * 100));
         }
       }
