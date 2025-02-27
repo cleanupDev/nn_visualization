@@ -32,7 +32,6 @@ interface ModelActions {
   updateWeightsAndBiases: (model: tf.LayersModel) => void;
   rebuildModelFromLayers: () => void;
 }
-
 interface ModelInfo {
   model: tf.LayersModel | null;
   input_neurons: number;
