@@ -74,13 +74,14 @@ export function ImprovedButtonControlledSidebarMenu({ children }: SidebarMenuPro
           isOpen ? "translate-x-0" : "translate-x-full"
         )}
       >
-        <div className="p-4 pt-16 h-full flex flex-col">
-          <div className="flex items-center font-mono text-zinc-300 mb-4">
-            <Menu className="mr-2 h-4 w-4" />
-            NEURAL NETWORK CONTROLS
-          </div>
-          
-          {/* Scrollable area for cards */}
+        {/* Header at the very top */}
+        <div className="flex items-center font-mono text-zinc-300 py-2 px-4 border-b border-zinc-800">
+          <Menu className="mr-2 h-4 w-4" />
+          NEURAL NETWORK CONTROLS
+        </div>
+        
+        {/* Content area */}
+        <div className="p-4 h-[calc(100%-36px)] flex flex-col">
           <div className={`flex-grow overflow-y-auto custom-scrollbar ${isStylesLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}>
             <div className="space-y-4 pr-2">
               <DatasetSelectionCard />
