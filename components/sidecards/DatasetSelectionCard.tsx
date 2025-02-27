@@ -2,11 +2,12 @@
 
 import React from "react";
 import { useModelStore } from "@/components/store";
-import { Settings } from "lucide-react";
+import { Settings, Info } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import * as tf from "@tensorflow/tfjs";
 import { Scatter, Line } from 'react-chartjs-2';
 import {
@@ -16,7 +17,7 @@ import {
     PointElement,
     LineElement,
     Title,
-    Tooltip,
+    Tooltip as ChartTooltip,
     Legend,
     ScatterController,
 } from 'chart.js';
@@ -28,7 +29,7 @@ ChartJS.register(
     PointElement,
     LineElement,
     Title,
-    Tooltip,
+    ChartTooltip,
     Legend,
     ScatterController
 );
@@ -78,48 +79,73 @@ const DatasetSelectionCard = () => {
   }`;
 
   return (
-    <Card className="border-zinc-800 bg-zinc-900/50">
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center font-mono text-sm font-medium text-zinc-300">
-          <Settings className="mr-2 h-4 w-4" />
-          DATASET.CONFIG
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <RadioGroup 
-          value={selectedDataset && selectedDataset !== 'mnist' ? selectedDataset : ''}
-          className="grid grid-cols-2 gap-2"
-          onValueChange={handleDatasetChange}
-        >
-          <Label
-            htmlFor="xor"
-            className={`flex cursor-pointer items-center justify-center rounded-md border border-zinc-800 bg-black/50 p-4 font-mono text-sm text-zinc-400 hover:bg-zinc-900 hover:text-zinc-300 [&:has([data-state=checked])]:border-zinc-700 [&:has([data-state=checked])]:bg-zinc-900 [&:has([data-state=checked])]:text-zinc-300 ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}
+    <TooltipProvider>
+      <Card className="border-zinc-800 bg-zinc-900/50">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center font-mono text-sm font-medium text-zinc-300">
+            <Settings className="mr-2 h-4 w-4" />
+            DATASET.CONFIG
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <RadioGroup 
+            value={selectedDataset && selectedDataset !== 'mnist' ? selectedDataset : ''}
+            className="grid grid-cols-2 gap-2"
+            onValueChange={handleDatasetChange}
           >
-            <RadioGroupItem value="xor" id="xor" className="sr-only" disabled={isLoading} />
-            XOR
-          </Label>
-          <Label
-            htmlFor="sine"
-            className={`flex cursor-pointer items-center justify-center rounded-md border border-zinc-800 bg-black/50 p-4 font-mono text-sm text-zinc-400 hover:bg-zinc-900 hover:text-zinc-300 [&:has([data-state=checked])]:border-zinc-700 [&:has([data-state=checked])]:bg-zinc-900 [&:has([data-state=checked])]:text-zinc-300 ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}
-          >
-            <RadioGroupItem value="sine" id="sine" className="sr-only" disabled={isLoading} />
-            SINE
-          </Label>
-        </RadioGroup>
-        <Button
-          className={mnistButtonClassName}
-          variant="outline"
-          onClick={() => handleDatasetChange('mnist')}
-          disabled={isLoading}
-        >
-          {getMnistButtonText()}
-        </Button>
-        
-        <div className="mt-4 space-y-2 rounded-lg border border-zinc-800 bg-black/50 p-3">
-          <DataPreview />
-        </div>
-      </CardContent>
-    </Card>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Label
+                  htmlFor="xor"
+                  className={`flex cursor-pointer items-center justify-center rounded-md border border-zinc-800 bg-black/50 p-4 font-mono text-sm text-zinc-400 hover:bg-zinc-900 hover:text-zinc-300 [&:has([data-state=checked])]:border-zinc-700 [&:has([data-state=checked])]:bg-zinc-900 [&:has([data-state=checked])]:text-zinc-300 ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}
+                >
+                  <RadioGroupItem value="xor" id="xor" className="sr-only" disabled={isLoading} />
+                  XOR <Info className="ml-1.5 h-3 w-3 opacity-70" />
+                </Label>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-xs">
+                <p>XOR (exclusive OR) is a classic problem that can&apos;t be solved with a single-layer neural network. It demonstrates the need for hidden layers and non-linear activation functions - a fundamental concept in neural network architecture.</p>
+              </TooltipContent>
+            </Tooltip>
+            
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Label
+                  htmlFor="sine"
+                  className={`flex cursor-pointer items-center justify-center rounded-md border border-zinc-800 bg-black/50 p-4 font-mono text-sm text-zinc-400 hover:bg-zinc-900 hover:text-zinc-300 [&:has([data-state=checked])]:border-zinc-700 [&:has([data-state=checked])]:bg-zinc-900 [&:has([data-state=checked])]:text-zinc-300 ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}
+                >
+                  <RadioGroupItem value="sine" id="sine" className="sr-only" disabled={isLoading} />
+                  SINE <Info className="ml-1.5 h-3 w-3 opacity-70" />
+                </Label>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-xs">
+                <p>The sine wave problem demonstrates how neural networks can learn continuous functions and approximate any mathematical function. It shows their ability to generalize from specific data points to smooth curve fitting.</p>
+              </TooltipContent>
+            </Tooltip>
+          </RadioGroup>
+          
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                className={mnistButtonClassName}
+                variant="outline"
+                onClick={() => handleDatasetChange('mnist')}
+                disabled={isLoading}
+              >
+                {getMnistButtonText()} <Info className="ml-1.5 h-3 w-3 opacity-70" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs">
+              <p>MNIST is a benchmark dataset of handwritten digits used to test image classification algorithms. It demonstrates how neural networks can learn to recognize complex patterns in high-dimensional data, making them ideal for computer vision tasks.</p>
+            </TooltipContent>
+          </Tooltip>
+          
+          <div className="mt-4 space-y-2 rounded-lg border border-zinc-800 bg-black/50 p-3">
+            <DataPreview />
+          </div>
+        </CardContent>
+      </Card>
+    </TooltipProvider>
   );
 };
 
