@@ -17,6 +17,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import Image from 'next/image';
+import { X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 // Feedback button component
 export function FeedbackButtonComponent() {
@@ -86,29 +88,29 @@ export function FeedbackButtonComponent() {
           <span className="sr-only">Open feedback form</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] border border-zinc-800 bg-black/90 text-zinc-300 backdrop-blur-sm">
         <DialogHeader>
-          <DialogTitle>Feedback</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-zinc-200">Feedback</DialogTitle>
+          <DialogDescription className="text-zinc-400">
             Send us your feedback to help improve the application.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
+              <Label htmlFor="name" className="text-right text-zinc-400">
                 Name
               </Label>
               <Input
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="col-span-3"
+                className="col-span-3 bg-zinc-900/50 border-zinc-800 text-zinc-300 focus:border-zinc-700 focus:ring-zinc-700"
                 required
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="email" className="text-right">
+              <Label htmlFor="email" className="text-right text-zinc-400">
                 Email
               </Label>
               <Input
@@ -116,33 +118,37 @@ export function FeedbackButtonComponent() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="col-span-3"
+                className="col-span-3 bg-zinc-900/50 border-zinc-800 text-zinc-300 focus:border-zinc-700 focus:ring-zinc-700"
                 required
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="feedback" className="text-right">
+              <Label htmlFor="feedback" className="text-right text-zinc-400">
                 Feedback
               </Label>
               <Textarea
                 id="feedback"
                 value={feedback}
                 onChange={(e) => setFeedback(e.target.value)}
-                className="col-span-3"
+                className="col-span-3 min-h-[100px] bg-zinc-900/50 border-zinc-800 text-zinc-300 focus:border-zinc-700 focus:ring-zinc-700"
                 required
               />
             </div>
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={status === 'loading'}>
+            <Button 
+              type="submit" 
+              disabled={status === 'loading'}
+              className="bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+            >
               {status === 'loading' ? 'Sending...' : 'Submit Feedback'}
             </Button>
           </DialogFooter>
           {status === 'success' && (
-            <p className="mt-2 text-green-600">Feedback sent successfully!</p>
+            <p className="mt-2 text-green-500">Feedback sent successfully!</p>
           )}
           {status === 'error' && (
-            <p className="mt-2 text-red-600">Error: {errorMessage}</p>
+            <p className="mt-2 text-red-500">Error: {errorMessage}</p>
           )}
         </form>
       </DialogContent>
